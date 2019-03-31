@@ -19,7 +19,7 @@ public Plugin myinfo =
 	author = PLUGIN_AUTHOR,
 	description = "rats rats rats",
 	version = PLUGIN_VERSION,
-	url = ""
+	url = "https://github.com/Jadowo/Rats-"
 };
 
 public void OnPluginStart()
@@ -45,7 +45,6 @@ public void OnMapStart(){
 }
 
 public Action Event_RoundStart(Event event, const char[] sName, bool bDontBroadcast){
-	ServerCommand("mp_autoteambalance 1");
 	int ratdaynum = GetRandomInt(1,10);
 	//Normal
 	if(ratdaynum >= 1 && ratdaynum <= 3){
@@ -61,7 +60,13 @@ public Action Event_RoundStart(Event event, const char[] sName, bool bDontBroadc
 	}
 	//HideNSeek
 	else if(ratdaynum == 6){
+		if(GetClientCount(true)>=4){
 		RatDay_HideNSeek();
+		}
+		else{
+			PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Not enough players for HideNSeek!");
+			RatDay_Normal();
+		}
 	}
 	//HeThrow
 	else if(ratdaynum == 7){
@@ -182,7 +187,8 @@ public void RatDay_HideNSeek(){
 				CCSPlayer player = CCSPlayer(ranplayers[chosen]);
 				SetEntPropFloat(ranplayers[chosen], Prop_Data, "m_flLaggedMovementValue", 0.0);
 				SetEntProp(ranplayers[chosen], Prop_Data, "m_takedamage", 0, 1);
-				unfreezect = CreateTimer(15.0, TimerUnfreezeCT, GetClientUserId(ranplayers[chosen]));
+				PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have 60 seconds to hide!");
+				unfreezect = CreateTimer(65.0, TimerUnfreezeCT, GetClientUserId(ranplayers[chosen]));
 				//ServerCommand("sm_blind @ct 255");
 				Handle hMsg = StartMessageOne("Fade", player.Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 				PbSetInt(hMsg, "duration", 5000);
@@ -207,6 +213,7 @@ public void RatDay_HideNSeek(){
 			//PrintToChatAll(XG_PREFIX_CHAT..."Chosen Players: %s", buf2);
 			if(otherplayers[l] != ranplayers[chosen]){
 				CCSPlayer player = CCSPlayer(otherplayers[l]);
+				player.Speed = 0.9;
 				player.SwitchTeam(2);
 				GivePlayerWeapon(player, "weapon_flashbang");
 				GivePlayerWeapon(player, "weapon_decoy");
@@ -214,7 +221,9 @@ public void RatDay_HideNSeek(){
 		}
 	}
 	snowballtimert = CreateTimer(1.0, TimerGiveSnowballT, _, TIMER_REPEAT);
-	tacttimer = CreateTimer(10.0, TimerGiveTactAware, _, TIMER_REPEAT);
+	tacttimer = CreateTimer(45.0, TimerGiveTactAware, _, TIMER_REPEAT);
+	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
+	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 }
 
 public void RatDay_HeThrow(){
@@ -238,7 +247,7 @@ public void RatDay_HeThrow(){
 public void RatDay_SanicSpeed(){
 	PrintToChatAll(XG_PREFIX_CHAT..."Sanic Speed!");
 	for(CCSPlayer p = CCSPlayer(0); CCSPlayer.Next(p);){
-		p.Speed = 4.0;
+		p.Speed = 3.0;
 	}
 }
 
