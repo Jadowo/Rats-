@@ -21,89 +21,112 @@ public Plugin myinfo = {
 	url = "https://github.com/Jadowo/Rats-"
 };
 
-public void OnPluginStart(){
-	HookEvent("round_end", Event_RoundEnd);
-	HookEvent("round_start", Event_RoundStart);
-	
-}
-
 Handle snowballtimerct;
 Handle snowballtimert;
+Handle playbumpy;
 Handle hetimer;
 Handle tacttimer;
 Handle unfreezect;
+ConVar autobalance;
+ConVar taserrecharge;
+ConVar roundtime;
+ConVar defuseroundtime;
+ConVar hostageroundtime;
+ConVar freezetime;
+public void OnPluginStart(){
+	HookEvent("round_end", Event_RoundEnd);
+	HookEvent("round_start", Event_RoundStart);
+	HookEvent("player_death", Event_PlayerDeath);
+	AddFileToDownloadsTable("sound/rats/bumpybumpy.mp3");
+	autobalance = FindConVar("mp_autoteambalance");
+	taserrecharge = FindConVar("mp_taser_recharge_time");
+	roundtime = FindConVar("mp_roundtime");
+	defuseroundtime = FindConVar("mp_roundtime_defuse");
+	hostageroundtime = FindConVar("mp_roundtime_hostage");
+	freezetime = FindConVar("mp_freezetime");
+}
+
 public void OnMapStart(){
-	// When setting Heavy Armor, model is changed.
 	PrecacheModel("models/player/custom_player/legacy/ctm_heavy.mdl");
 	PrecacheModel("models/player/custom_player/legacy/tm_phoenix_heavy.mdl");
-	ServerCommand("mp_taser_recharge_time 1.5");
-	ServerCommand("mp_limitteams 30");
+	PrecacheSound("rats/bumpybumpy.mp3", true);
+	PrecacheSound("buttons/blip1.wav", true);
+	taserrecharge.IntValue = 2;
+	roundtime.IntValue = 10;
+	defuseroundtime.IntValue = 10;
+	hostageroundtime.IntValue = 10;
+	freezetime.IntValue = 5;
 }
 
 public Action Event_RoundStart(Event event, const char[] sName, bool bDontBroadcast){
 	int ratdaynum = GetRandomInt(1,100);
 	//Normal
 	if(ratdaynum >= 1 && ratdaynum <= 30){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_Normal();
 	}
 	//BigJug
 	else if(ratdaynum >= 31 && ratdaynum <= 40){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_BigJug();
 	}
 	//Snowball
 	else if(ratdaynum >= 41 && ratdaynum <= 50){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_SnowballFight();
 	}
 	//HideNSeek
 	else if(ratdaynum >= 51 && ratdaynum <= 60){
-		if(GetClientCount(true)>=4){
-		ServerCommand("mp_autoteambalance 1");
+		if(GetClientCount(true)>=0){
+		SetAutoBalance(0);
 		RatDay_HideNSeek();
 		}
 		else{
 			PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Not enough players for HideNSeek!");
+			SetAutoBalance(1);
 			RatDay_Normal();
 		}
 	}
 	//HeThrow
 	else if(ratdaynum >= 61 && ratdaynum <= 70){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_HeThrow();
 	}
 	//SanicSpeed
 	else if(ratdaynum >= 71 && ratdaynum <= 80){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_SanicSpeed();
 	}
 	//LowGrav
 	else if(ratdaynum >= 81 && ratdaynum <=90){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_LowGrav();
 	}
+	//Bumpy
 	else if(ratdaynum >= 91){
-		ServerCommand("mp_autoteambalance 1");
+		SetAutoBalance(1);
 		RatDay_Bumpy();
 	}
 }
 
 public Action Event_RoundEnd(Event event, const char[] sName, bool bDontBroadcast){
-	if(snowballtimerct != null){
+	if(!snowballtimerct){
 		delete snowballtimerct;
 	}
-	if(unfreezect != null){
+	if(!unfreezect){
 		delete unfreezect;
 	}
-	if(snowballtimert != null){
+	if(!snowballtimert){
 		delete snowballtimert;
 	}
-	if(tacttimer != null){
+	if(!tacttimer){
 		delete tacttimer;
 	}
-	if(hetimer != null){
+	if(!hetimer){
 		delete hetimer;
+	}
+	if(!playbumpy){
+		delete playbumpy;
 	}
 	CCSPlayer p = CCSPlayer(0);
 	while(CCSPlayer.Next(p)){
@@ -111,6 +134,8 @@ public Action Event_RoundEnd(Event event, const char[] sName, bool bDontBroadcas
 	}
 }
 
+public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast){
+}
 
 public void RatDay_Normal(){
 	PrintToChatAll(XG_PREFIX_CHAT..."Normal Day!");
@@ -153,16 +178,17 @@ public void RatDay_SnowballFight(){
 			p.Armor = false;
 		}
 	}
-	snowballtimert = CreateTimer(2.0, TimerGiveSnowballT, _, TIMER_REPEAT);
-	snowballtimerct = CreateTimer(2.0, TimerGiveSnowballCT, _, TIMER_REPEAT);
+	snowballtimert = CreateTimer(3.0, TimerGiveSnowballT, _, TIMER_REPEAT);
+	snowballtimerct = CreateTimer(3.0, TimerGiveSnowballCT, _, TIMER_REPEAT);
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 	
 }
 
 public void RatDay_HideNSeek(){
+	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
+	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 	PrintToChatAll(XG_PREFIX_CHAT..."Hide N Seek!");
-	ServerCommand("mp_autoteambalance 0");
 	int[] ranplayers = new int[GetClientCount(true)];
 	int[] otherplayers = new int[GetClientCount(true)];
 	int i, chosen, l;
@@ -179,7 +205,7 @@ public void RatDay_HideNSeek(){
 		}
 	}
 	//Get Random Players
-	for (i = 1; i <= GetClientCount(true)/4; i++){
+	for (i = 1; i <= GetClientCount(true)/3; i++){
 		ranplayers[i] = GetRandomInt(1, GetClientCount(true));
 		for (chosen = i; chosen > 0; chosen--){
 			if(ranplayers[chosen] == ranplayers[i]){
@@ -190,9 +216,7 @@ public void RatDay_HideNSeek(){
 				CCSPlayer player = CCSPlayer(ranplayers[chosen]);
 				SetEntPropFloat(ranplayers[chosen], Prop_Data, "m_flLaggedMovementValue", 0.0);
 				SetEntProp(ranplayers[chosen], Prop_Data, "m_takedamage", 0, 1);
-				PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have 60 seconds to hide!");
 				unfreezect = CreateTimer(65.0, TimerUnfreezeCT, GetClientUserId(ranplayers[chosen]));
-				//ServerCommand("sm_blind @ct 255");
 				Handle hMsg = StartMessageOne("Fade", player.Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 				PbSetInt(hMsg, "duration", 5000);
 				PbSetInt(hMsg, "hold_time", 1500);
@@ -205,35 +229,28 @@ public void RatDay_HideNSeek(){
 	}
 	//2 is Terrorist
 	//3 is Counter_Terrorist
-	for (l = 1; l <= MAXPLAYERS; l++){
+	for (l = 1; l <= GetClientCount(true); l++){
 		otherplayers[l] = l;
 		char buf[50];
 		char buf2[50];
 		GetClientName(otherplayers[l], buf, sizeof(buf));
 		//PrintToChatAll(XG_PREFIX_CHAT..."Players: %s", buf);
-		for (chosen = GetClientCount(true) / 2; chosen > 0; chosen--){
+		for (chosen = 1; chosen <= GetClientCount(true)/3; chosen++){
 			GetClientName(ranplayers[chosen], buf2, sizeof(buf2));
 			//PrintToChatAll(XG_PREFIX_CHAT..."Chosen Players: %s", buf2);
 			if(otherplayers[l] != ranplayers[chosen]){
 				CCSPlayer player = CCSPlayer(otherplayers[l]);
+				playbumpy = CreateTimer(60.0, Timer_Locate, GetClientUserId(otherplayers[l]), TIMER_REPEAT);
+				//PrintToChatAll("sound played %d", otherplayers[l]);
 				player.Speed = 0.9;
 				player.SwitchTeam(2);
-				for(int ix = 0; ix <= CS_SLOT_C4;ix++){
-					CWeapon wep;
-					while((wep = p.GetWeapon(ix)) != NULL_CWEAPON){
-						p.RemoveItem(wep);
-						wep.Kill();
-					}
-				}
-				GivePlayerWeapon(player, "weapon_flashbang");
 				GivePlayerWeapon(player, "weapon_decoy");
 			}
 		}
 	}
-	snowballtimert = CreateTimer(5.0, TimerGiveSnowballT, _, TIMER_REPEAT);
-	tacttimer = CreateTimer(45.0, TimerGiveTactAware, _, TIMER_REPEAT);
-	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
-	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
+	tacttimer = CreateTimer(90.0, TimerGiveTactAware, _, TIMER_REPEAT);
+	snowballtimert = CreateTimer(60.0, TimerGiveSnowballT,_, TIMER_REPEAT);
+	PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have 60 seconds to hide!");
 }
 
 public void RatDay_HeThrow(){
@@ -250,7 +267,7 @@ public void RatDay_HeThrow(){
 			}
 		}
 	}
-	hetimer = CreateTimer(1.5, TimerGiveHEGrenade, _, TIMER_REPEAT);
+	hetimer = CreateTimer(3.0, TimerGiveHEGrenade, _, TIMER_REPEAT);
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 }
@@ -291,7 +308,7 @@ public void RatDay_Bumpy(){
 		wep.ReserveAmmo = 0;
 	}
 }
-	
+
 public Action TimerGiveSnowballCT(Handle timer, any client){
 	CCSPlayer p = CCSPlayer(0);
 	while(CCSPlayer.Next(p)){
@@ -373,4 +390,19 @@ public Action TimerGiveHEGrenade(Handle timer, any client){
 			GivePlayerWeapon(p, "weapon_hegrenade");
 		}
 	}
+}
+
+public Action Timer_Locate(Handle timer, any userid){
+	int client = GetClientOfUserId(userid);
+	if (IsClientInGame(client) && IsPlayerAlive(client) && 0 < client <= MaxClients){
+		float vec[3];
+		GetClientAbsOrigin(client, vec);
+		vec[2] += 10;
+		GetClientEyePosition(client, vec);
+		EmitAmbientSound("rats/bumpybumpy.mp3", vec, client, SNDLEVEL_SCREAMING);
+	}
+}
+
+void SetAutoBalance(int toggle){
+	autobalance.IntValue = toggle;
 }
