@@ -37,7 +37,19 @@ public void OnPluginStart(){
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death", Event_PlayerDeath);
-	AddFileToDownloadsTable("sound/rats/bumpybumpy.mp3");
+	AddFileToDownloadsTable("sound/rats/bb1.mp3");
+	AddFileToDownloadsTable("sound/rats/bb2.mp3");
+	AddFileToDownloadsTable("sound/rats/bb3.mp3");
+	AddFileToDownloadsTable("sound/rats/bb4.mp3");
+	AddFileToDownloadsTable("sound/rats/bb5.mp3");
+	AddFileToDownloadsTable("sound/rats/bb6.mp3");
+	AddFileToDownloadsTable("sound/rats/bb7.mp3");
+	AddFileToDownloadsTable("sound/rats/bb8.mp3");
+	AddFileToDownloadsTable("sound/rats/bb9.mp3");
+	AddFileToDownloadsTable("sound/rats/bb10.mp3");
+	AddFileToDownloadsTable("sound/rats/bb11.mp3");
+	AddFileToDownloadsTable("sound/rats/bb12.mp3");
+	AddFileToDownloadsTable("sound/rats/bb13.mp3");
 	autobalance = FindConVar("mp_autoteambalance");
 	taserrecharge = FindConVar("mp_taser_recharge_time");
 	roundtime = FindConVar("mp_roundtime");
@@ -49,8 +61,19 @@ public void OnPluginStart(){
 public void OnMapStart(){
 	PrecacheModel("models/player/custom_player/legacy/ctm_heavy.mdl");
 	PrecacheModel("models/player/custom_player/legacy/tm_phoenix_heavy.mdl");
-	PrecacheSound("rats/bumpybumpy.mp3", true);
-	PrecacheSound("buttons/blip1.wav", true);
+	PrecacheSound("sound/rats/bb1.mp3", true);
+	PrecacheSound("sound/rats/bb2.mp3", true);
+	PrecacheSound("sound/rats/bb3.mp3", true);
+	PrecacheSound("sound/rats/bb4.mp3", true);
+	PrecacheSound("sound/rats/bb5.mp3", true);
+	PrecacheSound("sound/rats/bb6.mp3", true);
+	PrecacheSound("sound/rats/bb7.mp3", true);
+	PrecacheSound("sound/rats/bb8.mp3", true);
+	PrecacheSound("sound/rats/bb9.mp3", true);
+	PrecacheSound("sound/rats/bb10.mp3", true);
+	PrecacheSound("sound/rats/bb11.mp3", true);
+	PrecacheSound("sound/rats/bb12.mp3", true);
+	PrecacheSound("sound/rats/bb13.mp3", true);
 	taserrecharge.IntValue = 2;
 	roundtime.IntValue = 10;
 	defuseroundtime.IntValue = 10;
@@ -135,6 +158,7 @@ public Action Event_RoundEnd(Event event, const char[] sName, bool bDontBroadcas
 }
 
 public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast){
+	//Nothing for now
 }
 
 public void RatDay_Normal(){
@@ -399,7 +423,46 @@ public Action Timer_Locate(Handle timer, any userid){
 		GetClientAbsOrigin(client, vec);
 		vec[2] += 10;
 		GetClientEyePosition(client, vec);
-		EmitAmbientSound("rats/bumpybumpy.mp3", vec, client, SNDLEVEL_SCREAMING);
+		int taunt = GetRandomInt(1, 13);
+		if(taunt == 1){
+			EmitAmbientSound("rats/bb1.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 2){
+			EmitAmbientSound("rats/bb2.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 3){
+			EmitAmbientSound("rats/bb3.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 4){
+			EmitAmbientSound("rats/bb4.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 5){
+			EmitAmbientSound("rats/bb5.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 6){
+			EmitAmbientSound("rats/bb6.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 7){
+			EmitAmbientSound("rats/bb7.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 8){
+			EmitAmbientSound("rats/bb8.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 9){
+			EmitAmbientSound("rats/bb9.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 10){
+			EmitAmbientSound("rats/bb10.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 11){
+			EmitAmbientSound("rats/bb11.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 12){
+			EmitAmbientSound("rats/bb12.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
+		else if(taunt == 13){
+			EmitAmbientSound("rats/bb13.mp3", vec, client, SNDLEVEL_SCREAMING);
+		}
 	}
 }
 
