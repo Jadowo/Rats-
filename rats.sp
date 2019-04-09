@@ -29,8 +29,7 @@ Handle tacttimer;
 Handle unfreezect;
 Handle respawnhider;
 Handle infiniter8;
-Handle stripprimary;
-Handle stripsecondary;
+Handle lasthider;
 ConVar autobalance;
 ConVar taserrecharge;
 ConVar roundtime;
@@ -98,56 +97,6 @@ public void OnMapStart(){
 	autobalance.IntValue = 1;
 }
 
-public void OnClientPutInServer(int client){
-	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse); 
-}
-
-public Action OnWeaponCanUse(int client, int weapon){
-	CWeapon wep = CWeapon.FromIndex(weapon);
-	char nweapon[32];
-	wep.GetClassname(nweapon, sizeof(nweapon));
-	//PrintToChatAll(nweapon);
-	if (StrEqual(dayname, "snowball")){
-		if(!StrEqual(nweapon, "weapon_snowball")){
-			return Plugin_Stop;
-		}
-	}
-	if (StrEqual(dayname, "he")){
-		if(!StrEqual(nweapon, "weapon_hegrenade")){
-			return Plugin_Stop;
-		}
-	}
-	if (StrEqual(dayname, "bumpy")){
-		if(!StrEqual(nweapon, "weapon_deagle")){
-			return Plugin_Stop;
-		}
-	}
-	if (StrEqual(dayname, "hide")){
-		if(!StrEqual(nweapon, "weapon_taser") && !StrEqual(nweapon, "weapon_snowball") && !StrEqual(nweapon, "weapon_tagrenade")){
-			return Plugin_Stop;
-		}
-	}
-	return Plugin_Continue;
-}
-
-public void OnClientDisconnect(int client){
-	SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
-}
-
-public Action Command_ForceDay(int client, int args){
-	Menu menu = new Menu(Menu_ForceDay);
-	menu.SetTitle("Force Day");
-	menu.AddItem("normal", "Normal");
-	menu.AddItem("bigjug", "Fat");
-	menu.AddItem("snowball", "SnowballFight");
-	menu.AddItem("hide", "HideNSeek");
-	menu.AddItem("he", "HE Throw");
-	menu.AddItem("sanic", "Sanic Speed");
-	menu.AddItem("lowgrav", "Low Gravity");
-	menu.AddItem("bumpy", "R8 8/8");
-	menu.Display(client, MENU_TIME_FOREVER);
-}
-
 public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 	if (action == MenuAction_Select){
 		menu.GetItem(itemNum, dayname, sizeof(dayname), _, display, sizeof(display));
@@ -189,89 +138,157 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 	}
 }
 
+public Action Command_ForceDay(int client, int args){
+	Menu menu = new Menu(Menu_ForceDay);
+	menu.SetTitle("Force Day");
+	menu.AddItem("normal", "Normal");
+	menu.AddItem("bigjug", "Fat");
+	menu.AddItem("snowball", "SnowballFight");
+	menu.AddItem("hide", "HideNSeek");
+	menu.AddItem("he", "HE Throw");
+	menu.AddItem("sanic", "Sanic Speed");
+	menu.AddItem("lowgrav", "Low Gravity");
+	menu.AddItem("bumpy", "R8 8/8");
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public void OnClientPutInServer(int client){
+	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse); 
+}
+
+public Action OnWeaponCanUse(int client, int weapon){
+	CWeapon wep = CWeapon.FromIndex(weapon);
+	char nweapon[32];
+	wep.GetClassname(nweapon, sizeof(nweapon));
+	//PrintToChatAll(nweapon);
+	if (StrEqual(dayname, "snowball")){
+		if(!StrEqual(nweapon, "weapon_snowball")){
+			return Plugin_Stop;
+		}
+	}
+	if (StrEqual(dayname, "he")){
+		if(!StrEqual(nweapon, "weapon_hegrenade")){
+			return Plugin_Stop;
+		}
+	}
+	if (StrEqual(dayname, "bumpy")){
+		if(!StrEqual(nweapon, "weapon_deagle")){
+			return Plugin_Stop;
+		}
+	}
+	if (StrEqual(dayname, "hide")){
+		if(lasthider == null){
+			if(!StrEqual(nweapon, "weapon_taser") && !StrEqual(nweapon, "weapon_snowball") && !StrEqual(nweapon, "weapon_tagrenade")){
+				return Plugin_Stop;
+			}
+		}
+		else if(lasthider != null){
+			if(!StrEqual(nweapon, "weapon_taser") && !StrEqual(nweapon, "weapon_snowball") && !StrEqual(nweapon, "weapon_tagrenade") && !StrEqual(nweapon, "weapon_usp_silencer") && !StrEqual(nweapon, "weapon_mp5sd") && !StrEqual(nweapon, "weapon_glock")){
+				return Plugin_Stop;
+			}
+		}
+	}
+	return Plugin_Continue;
+}
+
+public void OnClientDisconnect(int client){
+	SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
+}
+
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
 	if(firstround){
 		dayname = "normal";
 		RatDay_Normal();
 		firstround = false;
 	}
-	else if(!firstround){
-		if(forceday){
-			if(StrEqual(dayname, "normal")){
-				RatDay_Normal();
-			}
-			else if(StrEqual(dayname, "bigjug")){
-				RatDay_BigJug();
-			}
-			else if(StrEqual(dayname, "snowball")){
-				RatDay_SnowballFight();
-			}
-			else if(StrEqual(dayname, "hide")){
-				RatDay_HideNSeek();
-			}
-			else if(StrEqual(dayname, "he")){
-				RatDay_HeThrow();
-			}
-			else if(StrEqual(dayname, "sanic")){
-				RatDay_SanicSpeed();
-			}
-			else if(StrEqual(dayname, "lowgrav")){
-				RatDay_LowGravity();
-			}
-			else if(StrEqual(dayname, "bumpy")){
-				RatDay_Bumpy();
-			}
-			forceday = false;
+	if(forceday){
+		if(StrEqual(dayname, "normal")){
+			RatDay_Normal();
 		}
-		else if(!forceday){
-			if(ratday <= NormalChance.IntValue){
-				dayname = "normal";
-				RatDay_Normal();
-			}
-			else if(ratday >= NormalChance.IntValue +1){
-				switch(specialday){
-				//1 BigJug 
-					case 1:{
-						dayname = "bigjug";
-						RatDay_BigJug();
+		else if(StrEqual(dayname, "bigjug")){
+			RatDay_BigJug();
+		}
+		else if(StrEqual(dayname, "snowball")){
+			RatDay_SnowballFight();
+		}
+		else if(StrEqual(dayname, "hide")){
+			RatDay_HideNSeek();
+		}
+		else if(StrEqual(dayname, "he")){
+			RatDay_HeThrow();
+		}
+		else if(StrEqual(dayname, "sanic")){
+			RatDay_SanicSpeed();
+		}
+		else if(StrEqual(dayname, "lowgrav")){
+			RatDay_LowGravity();
+		}
+		else if(StrEqual(dayname, "bumpy")){
+			RatDay_Bumpy();
+		}
+		forceday = false;
+	}
+	else if(!forceday){
+		/*
+		if(ratday <= NormalChance.IntValue){
+			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", ratday);
+			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
+			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
+		}
+		if(ratday > NormalChance.IntValue){
+			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", ratday);
+			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Number: \x06%d", specialday);
+			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
+			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
+		}
+		*/
+		if(ratday <= NormalChance.IntValue){
+			dayname = "normal";
+			RatDay_Normal();
+		}
+		else if(ratday > NormalChance.IntValue){
+			switch(specialday){
+			//1 BigJug 
+				case 1:{
+					dayname = "bigjug";
+					RatDay_BigJug();
+				}
+			//2 Snowball Fight
+				case 2:{
+					dayname = "snowball";
+					RatDay_SnowballFight();
+				}
+			//3 HideNSeek
+				case 3:{
+					if(GetClientCount(true)>=4){
+						dayname = "hide";
+						RatDay_HideNSeek();
 					}
-				//2 Snowball Fight
-					case 2:{
-						dayname = "snowball";
-						RatDay_SnowballFight();
+					else{
+						PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Not enough \x02players \x01for \x06Hide N Seek\x01!");
+						dayname = "normal";
+						RatDay_Normal();
 					}
-				//3 HideNSeek
-					case 3:{
-						if(GetClientCount(true)>=4){
-							dayname = "hide";
-							RatDay_HideNSeek();
-						}
-						else{
-							PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Not enough \x02players \x01for \x06Hide N Seek\x01!");
-							dayname = "normal";
-							RatDay_Normal();
-						}
-					}
-				//4 HEThrow
-					case 4:{
-						dayname = "he";
-						RatDay_HeThrow();
-					}
-				//5 SanicSpeed
-					case 5:{
-						dayname = "sanic";
-						RatDay_SanicSpeed();
-					}
-				//6 LowGrav
-					case 6:{
-						dayname = "lowgrav";
-						RatDay_LowGravity();
-					}
-				//7 Bumpy
-					case 7:{
-						dayname = "bumpy";
-						RatDay_Bumpy();
-					}
+				}
+			//4 HEThrow
+				case 4:{
+					dayname = "he";
+					RatDay_HeThrow();
+				}
+			//5 SanicSpeed
+				case 5:{
+					dayname = "sanic";
+					RatDay_SanicSpeed();
+				}
+			//6 LowGrav
+				case 6:{
+					dayname = "lowgrav";
+					RatDay_LowGravity();
+				}
+			//7 Bumpy
+				case 7:{
+					dayname = "bumpy";
+					RatDay_Bumpy();
 				}
 			}
 		}
@@ -281,6 +298,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 public void Event_RoundEnd(Event event, const char[] name, bool dontbroadcast){
 	Stop_Timers();
 	if(!forceday){
+		//Get Random Day
 		ratday = GetRandomInt(1,100);
 		specialday = GetRandomInt(1, 7);
 		//Check for days that don't need to use buymenu
@@ -297,19 +315,6 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontbroadcast){
 			autobalance.IntValue = 1;
 			freezetime.IntValue = 10;
 		}
-		/*
-		if(ratday <= NormalChance.IntValue){
-			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", ratday);
-			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
-			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
-		}
-		if(ratday > NormalChance.IntValue){
-			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", ratday);
-			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Number: \x06%d", specialday);
-			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
-			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
-		}
-		*/
 	}
 	else if(forceday){
 		if(StrEqual(dayname, "snowball") || StrEqual(dayname, "hide") || StrEqual(dayname, "he") || StrEqual(dayname, "bumpy")){
@@ -343,9 +348,10 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontbroadcast)
 		GetEventInt(event, "dmg_health", hpdamage);
 		if(StrEqual(weaponused, "taser", false)){
 			attacker.Health += 10;
+			victim.Speed = 0.5;
 		}
 		else{
-			victim.Health += hpdamage/2;
+			victim.Health += hpdamage;
 		}
 	}
 }
@@ -435,10 +441,11 @@ public void RatDay_HideNSeek(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Hide N Seek\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
-	tacttimer = CreateTimer(90.0, Timer_GiveTactAware, _, TIMER_REPEAT);
-	snowballtimert = CreateTimer(60.0, Timer_GiveSnowballT,_, TIMER_REPEAT);
-	unfreezect = CreateTimer(60.0, Timer_SeekerStart);
+	tacttimer = CreateTimer(90.0, Timer_GiveTactAware, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	snowballtimert = CreateTimer(60.0, Timer_GiveSnowballT,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	unfreezect = CreateTimer(60.0, Timer_SeekerStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	playtaunt = CreateTimer(60.0, Timer_Taunt, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	lasthider = CreateTimer(10.0, Timer_LastHider, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have \x0C60 seconds \x01to hide!");
 	CCSPlayer ranplayers[64];
 	CCSPlayer realplayers[64];
@@ -454,7 +461,7 @@ public void RatDay_HideNSeek(){
 			}
 		}
 		count++;
-	}	
+	}
 	//Random Players
 	for (i = 1; i <= GetClientCount(true)/4; i++){
 		for (k = 1; k <= sizeof(ranplayers); k++){
@@ -488,6 +495,7 @@ public void RatDay_HideNSeek(){
 					wep.Kill();
 				}
 			}
+			p.Armor = false;
 			for (i = 1; i <= sizeof(ranplayers); i++){
 				if(p != ranplayers[i]){
 					p.SwitchTeam(CS_TEAM_T);
@@ -681,6 +689,7 @@ public Action Timer_Taunt(Handle timer){
 public Action Timer_RespawnAsSeeker(Handle timer, any client){
 	CCSPlayer p = CCSPlayer(client);
 	p.Respawn();
+	p.Speed = 1.0;
 	for(int i = 0; i <= CS_SLOT_C4;i++){
 		CWeapon wep;
 		while((wep = p.GetWeapon(i)) != NULL_CWEAPON){
@@ -689,6 +698,24 @@ public Action Timer_RespawnAsSeeker(Handle timer, any client){
 		}
 	}
 	GivePlayerWeapon(p, "weapon_taser");
+}
+
+public Action Timer_LastHider(Handle timer){
+	CCSPlayer p;
+	while(CCSPlayer.Next(p)){
+		if(p.InGame && !p.FakeClient && p.Alive && CS_TEAM_T == p.Team && GetTeamClientCount(CS_TEAM_T) == 1){
+			GivePlayerWeapon(p, "weapon_mp5sd");
+			GivePlayerWeapon(p, "weapon_usp_silencer");
+			p.Armor = true;
+			p.Armor = 200;
+			p.Speed = 2.5;
+			p.Health = 200;
+		}
+		else if(p.InGame && !p.FakeClient && p.Alive && CS_TEAM_T == p.Team){
+			GivePlayerWeapon(p, "weapon_glock");
+			p.Speed = 1.0;
+		}
+	}
 }
 
 public Action Timer_InfiniteR8(Handle timer){
@@ -726,10 +753,7 @@ public Action Stop_Timers(){
 	if(respawnhider != null){
 		delete respawnhider;
 	}
-	if(stripprimary != null){
-		delete stripprimary;
-	}
-	if(stripsecondary != null){
-		delete stripsecondary;
+	if(lasthider != null){
+		delete lasthider;
 	}
 }
