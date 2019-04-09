@@ -130,8 +130,7 @@ public Action OnWeaponCanUse(int client, int weapon){
 	return Plugin_Continue;
 }
 
-public void OnClientDisconnect(int client)
-{
+public void OnClientDisconnect(int client){
 	SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
 }
 
@@ -442,45 +441,43 @@ public void RatDay_HideNSeek(){
 	playtaunt = CreateTimer(60.0, Timer_Taunt, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have \x0C60 seconds \x01to hide!");
 	CCSPlayer ranplayers[64];
-	CCSPlayer allplayers[64];
+	CCSPlayer realplayers[64];
 	int i, k, chosen, count = 1;
-	//Random Players
-	for (i = 1; i < MaxClients; i++){
-		if (count != GetClientCount(true)){
-			if(IsClientInGame(i) && !IsFakeClient(i)){
-				allplayers[count] = CCSPlayer(i);
+	CCSPlayer p;
+	while(CCSPlayer.Next(p)){
+		if(count != GetClientCount(true)){
+			if(p.InGame && !p.FakeClient){
+				realplayers[count] = CCSPlayer(i);
 			}
-			else if(IsFakeClient(i)){
+			else if(p.FakeClient){ 
 				count--;
 			}
 		}
 		count++;
-	}
+	}	
+	//Random Players
 	for (i = 1; i <= GetClientCount(true)/4; i++){
-		if(IsClientInGame(i) && !IsFakeClient(i)){
-			for (k = 1; k <= sizeof(ranplayers); k++){
-				ranplayers[k] = allplayers[GetRandomInt(1, sizeof(allplayers))];
-				char buf[50];
-				GetClientName(ranplayers[k].Index, buf, sizeof(buf));
-				for (chosen = k; chosen > sizeof(ranplayers); chosen--){
-					if(ranplayers[chosen] == ranplayers[k]){
-						ranplayers[k] = allplayers[GetRandomInt(1, sizeof(allplayers))];
-					}
+		for (k = 1; k <= sizeof(ranplayers); k++){
+			ranplayers[k] = realplayers[GetRandomInt(1, sizeof(realplayers))];
+			for(chosen = k; chosen > sizeof(ranplayers); chosen--){
+				while(ranplayers[chosen] == ranplayers[k]){
+					ranplayers[k] = realplayers[GetRandomInt(1, sizeof(realplayers))];
 				}
-				GetClientName(ranplayers[k].Index, buf, sizeof(buf));
-				PrintToChatAll(XG_PREFIX_CHAT..."Seekers: %s", buf);
-				SetEntPropFloat(ranplayers[k].Index, Prop_Data, "m_flLaggedMovementValue", 0.0);
-				Handle hMsg = StartMessageOne("Fade", ranplayers[k].Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
-				PbSetInt(hMsg, "duration", 5000);
-				PbSetInt(hMsg, "hold_time", 1500);
-				PbSetInt(hMsg, "flags", 0x0008 | 0x0010);
-				PbSetColor(hMsg, "clr", {0, 0, 0, 255});
-				EndMessage();
-				ranplayers[k].SwitchTeam(CS_TEAM_CT);
 			}
+			char buf[50];
+			GetClientName(ranplayers[k].Index, buf, sizeof(buf));
+			PrintToChatAll(XG_PREFIX_CHAT..."Seekers: %s", buf);
+			SetEntPropFloat(ranplayers[k].Index, Prop_Data, "m_flLaggedMovementValue", 0.0);
+			Handle hMsg = StartMessageOne("Fade", ranplayers[k].Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
+			PbSetInt(hMsg, "duration", 5000);
+			PbSetInt(hMsg, "hold_time", 1500);
+			PbSetInt(hMsg, "flags", 0x0008 | 0x0010);
+			PbSetColor(hMsg, "clr", {0, 0, 0, 255});
+			EndMessage();
+			ranplayers[k].SwitchTeam(CS_TEAM_CT);
 		}
 	}
-	CCSPlayer p;
+	p = CCSPlayer(0);
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient && p.Alive){
 			SetEntProp(p.Index, Prop_Data, "m_takedamage", 0, 1);
@@ -491,13 +488,11 @@ public void RatDay_HideNSeek(){
 					wep.Kill();
 				}
 			}
-			i = 1;
-			while(i <= sizeof(ranplayers)){
+			for (i = 1; i <= sizeof(ranplayers); i++){
 				if(p != ranplayers[i]){
 					p.SwitchTeam(CS_TEAM_T);
 					p.Speed = 0.9;
 				}
-				i++;
 			}
 		}
 	}
