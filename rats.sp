@@ -474,13 +474,13 @@ public void RatDay_HideNSeek(){
 	while(CCSPlayer.Next(p)){
 		if(count != GetClientCount(true)){
 			if(p.InGame && !p.FakeClient){
-				realplayers[count] = CCSPlayer(count);
+				realplayers[count-1] = CCSPlayer(count);
 			}
 			else if(p.FakeClient){ 
 				count--;
 			}
+			count++;
 		}
-		count++;
 	}
 	//Random Players
 	for (i = 1; i <= GetClientCount(true)/4; i++){
