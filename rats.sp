@@ -116,6 +116,7 @@ public Action Command_ForceDay(int client, int args){
 	menu.AddItem("sanic", "Sanic Speed");
 	menu.AddItem("lowgrav", "Low Gravity");
 	menu.AddItem("bumpy", "R8 8/8");
+	menu.AddItem("onechamber", "One In The Chamber");
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -154,6 +155,10 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Bumpy Day\x01.");
 			forceday = true;
 		}
+		else if (StrEqual(dayname, "onechamber")){
+			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06One In The Chamber\x01.");
+			forceday = true;
+		}
 	}
 	else if (action == MenuAction_End){
 		delete menu;
@@ -161,7 +166,8 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 }
 
 public void OnClientPutInServer(int client){
-	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse); 
+	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
+	SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamageAlive);
 }
 
 public Action OnWeaponCanUse(int client, int weapon){
@@ -175,17 +181,22 @@ public Action OnWeaponCanUse(int client, int weapon){
 			return Plugin_Stop;
 		}
 	}
-	if (StrEqual(wepcanuse, "he")){
+	else if (StrEqual(wepcanuse, "he")){
 		if(!StrEqual(nweapon, "weapon_hegrenade")){
 			return Plugin_Stop;
 		}
 	}
-	if (StrEqual(wepcanuse, "bumpy")){
+	else if (StrEqual(wepcanuse, "bumpy")){
 		if(!StrEqual(nweapon, "weapon_deagle")){
 			return Plugin_Stop;
 		}
 	}
-	if (StrEqual(wepcanuse, "hide")){
+	else if (StrEqual(wepcanuse, "onechamber")){
+		if(!StrEqual(nweapon, "weapon_deagle") && !StrEqual(nweapon, "weapon_knife")){
+			return Plugin_Stop;
+		}
+	}
+	else if (StrEqual(wepcanuse, "hide")){
 		if(GetTeamClientCount(CS_TEAM_T) == 1 ){
 			if(CS_TEAM_CT == p.Team){
 				if(!StrEqual(nweapon, "weapon_taser") && !StrEqual(nweapon, "weapon_tagrenade")  && !StrEqual(nweapon, "weapon_glock")){
@@ -211,6 +222,16 @@ public Action OnWeaponCanUse(int client, int weapon){
 			}
 		}
 
+	}
+	return Plugin_Continue;
+}
+
+public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &dmg, int &dmgtype, int &weapon, float dmgforce[3], float dmgpos[3], int dmgcustom) {
+	if(StrEqual(dayname, "onechamber", false)){
+		if(dmgtype == DMG_FALL && dmg <= 100){
+			dmg = 0.0;
+			return Plugin_Changed;
+		}
 	}
 	return Plugin_Continue;
 }
@@ -252,6 +273,9 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			else if(StrEqual(dayname, "bumpy")){
 				RatDay_Bumpy();
 			}
+			else if(StrEqual(dayname, "onechamber")){
+				RatDay_OneInTheChamber();
+			}
 		}
 		else if(!forceday){
 			/*
@@ -290,7 +314,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 							RatDay_HideNSeek();
 						}
 						else{
-							PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Not enough \x02players \x01for \x06Hide N Seek\x01!");
+							PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x024 players \x01for \x06Hide N Seek\x01!");
 							dayname = "normal";
 							RatDay_Normal();
 						}
@@ -315,6 +339,11 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 						dayname = "bumpy";
 						RatDay_Bumpy();
 					}
+				//8 OneInTheChamber
+					case 8:{
+						dayname = "onechamber";
+						RatDay_OneInTheChamber();
+					}
 				}
 			}
 		}
@@ -326,12 +355,12 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontbroadcast){
 	ratday = GetRandomInt(1,100);
 	if(!forceday){
 		//Get Random Day
-		//Check for days that don't need to use buymenu
 		if(ratday > NormalChance.IntValue){
-			specialday = GetRandomInt(1, 7);
-			if((specialday >= 2 && specialday <= 4) || specialday == 7){
+			specialday = GetRandomInt(1, 8);
+			//Check for days that don't need to use buymenu
+			if((specialday >= 2 && specialday <= 4) || (specialday >= 7 && specialday <= 8)){
 				freezetime.IntValue = 0;
-				if(specialday == 2){
+				if(specialday == 3){
 					autobalance.IntValue = 0;
 				}
 				else{
@@ -349,7 +378,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontbroadcast){
 		}
 	}
 	else if(forceday){
-		if(StrEqual(dayname, "snowball") || StrEqual(dayname, "hide") || StrEqual(dayname, "he") || StrEqual(dayname, "bumpy")){
+		if(StrEqual(dayname, "snowball") || StrEqual(dayname, "hide") || StrEqual(dayname, "he") || StrEqual(dayname, "bumpy")|| StrEqual(dayname, "onechamber")){
 			freezetime.IntValue = 0;
 			if(StrEqual(dayname, "hide")){
 				autobalance.IntValue = 0;
@@ -378,6 +407,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontbroadcast)
 		int hpdamage;
 		char weaponused[64];
 		GetEventString(event, "weapon", weaponused, sizeof(weaponused));
+		PrintToChatAll(weaponused);
 		GetEventInt(event, "dmg_health", hpdamage);
 		if(StrEqual(weaponused, "taser", false)){
 			attacker.Health += 10;
@@ -394,6 +424,11 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontbroadcast
 	CCSPlayer victim = CCSPlayer.FromEvent(event, "userid");
 	char weaponused[60];
 	GetEventString(event, "weapon", weaponused, sizeof(weaponused));
+	PrintToChatAll(weaponused);
+	if(StrEqual(dayname, "onechamber", false)){
+		CWeapon wep = attacker.GetWeapon(CS_SLOT_SECONDARY);
+		wep.Ammo += 1;
+	}
 	if(StrEqual(dayname, "hide", false)){
 		if(StrEqual(weaponused, "taser", false)){
 			if(GetTeamClientCount(CS_TEAM_T) > 1){
@@ -598,6 +633,31 @@ public void RatDay_Bumpy(){
 			}
 			wep = GivePlayerWeapon(p, "weapon_revolver");
 			wep.Ammo = 8;
+			wep.ReserveAmmo = 0;
+		}
+	}
+}
+
+public void RatDay_OneInTheChamber(){
+	PrintToChatAll(XG_PREFIX_CHAT..."\x06One In The Chamber\x01!");
+	wepcanuse = "onechamber";
+	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
+	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
+	CCSPlayer p;
+	CWeapon wep;
+	while(CCSPlayer.Next(p)){
+		if(p.InGame && !p.FakeClient && p.Alive){
+			for(int i = 0; i <= CS_SLOT_C4;i++){ 
+				while((wep = p.GetWeapon(i)) != NULL_CWEAPON){
+					p.RemoveItem(wep);
+					wep.Kill();
+				}
+			}
+			p.Health = 1;
+			p.Armor = 1;
+			GivePlayerWeapon(p, "weapon_knife");
+			wep = GivePlayerWeapon(p, "weapon_revolver");
+			wep.Ammo = 1;
 			wep.ReserveAmmo = 0;
 		}
 	}
