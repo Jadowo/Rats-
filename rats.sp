@@ -44,21 +44,21 @@ int RatDay;
 bool FirstRound;
 bool ForceDay;
 enum DayType{
-	Type_Normal = 0,
-	Type_BigJug,
-	Type_Snowball,
-	Type_HideNSeek,
-	Type_HEThrow,
-	Type_Sanic,
-	Type_LowGravity,
-	Type_Bumpy,
-	Type_OneInTheChamber
+	Day_Normal = 0,
+	Day_BigJug,
+	Day_Snowball,
+	Day_HideNSeek,
+	Day_HEThrow,
+	Day_Sanic,
+	Day_LowGravity,
+	Day_Bumpy,
+	Day_OneInTheChamber
 };
-DayType Day;
+DayType CurrentDay;
 
 
 public void OnPluginStart(){
-	RegAdminCmd("sm_ForceDay", Command_ForceDay, ADMFLAG_ROOT);
+	RegAdminCmd("sm_forceday", Command_ForceDay, ADMFLAG_ROOT);
 	RegAdminCmd("sm_fd", Command_ForceDay, ADMFLAG_ROOT);
 	HookEvent("round_end", Event_RoundEnd);
 	HookEvent("round_start", Event_RoundStart);
@@ -138,56 +138,48 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 		if (StrEqual(dayName, "normal")){
 			RatDay = NormalChance.IntValue;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Normal Day\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "bigjug")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 1;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Fat Day\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "snowball")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 2;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Snowball Fight\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "hide")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 3;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Hide N Seek\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "he")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 4;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06He Throw\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "sanic")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 5;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Sanic Day\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "lowgrav")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 6;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Low Gravity Day\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "bumpy")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 7;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Bumpy Day\x01.");
-			ForceDay = true;
 		}
 		else if (StrEqual(dayName, "onechamber")){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 8;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06One In The Chamber\x01.");
-			ForceDay = true;
 		}
+		ForceDay = true;
 	}
 	else if (action == MenuAction_End){
 		delete menu;
@@ -205,58 +197,62 @@ public Action OnWeaponCanUse(int client, int weapon){
 	char weaponClassName[32];
 	wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 	//PrintToChatAll(weaponClassName);
-	if (Day == Type_Snowball){
-		if(!StrEqual(weaponClassName, "weapon_snowball")){
-			return Plugin_Stop;
-		}
-	}
-	else if (Day == Type_HEThrow){
-		if(!StrEqual(weaponClassName, "weapon_hegrenade")){
-			return Plugin_Stop;
-		}
-	}
-	else if (Day == Type_Bumpy){
-		if(!StrEqual(weaponClassName, "weapon_deagle")){
-			return Plugin_Stop;
-		}
-	}
-	else if (Day == Type_OneInTheChamber){
-		if(!StrEqual(weaponClassName, "weapon_deagle") && !StrEqual(weaponClassName, "weapon_knife")){
-			return Plugin_Stop;
-		}
-	}
-	else if (Day == Type_HideNSeek){
-		if(GetTeamClientCount(CS_TEAM_T) == 1 ){
-			if(CS_TEAM_CT == p.Team){
-				if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")  && !StrEqual(weaponClassName, "weapon_glock")){
-					return Plugin_Stop;
-				}
-			}
-			else if(CS_TEAM_T == p.Team){
-				if(!StrEqual(weaponClassName, "weapon_snowball") && !StrEqual(weaponClassName, "weapon_hkp2000") && !StrEqual(weaponClassName, "weapon_mp7")){
-					return Plugin_Stop;
-				}
+	switch(CurrentDay){
+		case Day_Snowball:{
+			if(!StrEqual(weaponClassName, "weapon_snowball")){
+				return Plugin_Stop;
 			}
 		}
-		if(GetTeamClientCount(CS_TEAM_T) > 1 ){
-			if(CS_TEAM_CT == p.Team){
-				if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")){
-					return Plugin_Stop;
+		case Day_HEThrow:{
+			if(!StrEqual(weaponClassName, "weapon_hegrenade")){
+				return Plugin_Stop;
+			}
+		}
+		case Day_Bumpy:{
+			if(!StrEqual(weaponClassName, "weapon_deagle")){
+				return Plugin_Stop;
+			}
+		}
+		case Day_OneInTheChamber:{
+			if(!StrEqual(weaponClassName, "weapon_deagle") && !StrEqual(weaponClassName, "weapon_knife")){
+				return Plugin_Stop;
+			}
+		}
+		case Day_HideNSeek:{
+			if(GetTeamClientCount(CS_TEAM_T) == 1 ){
+				if(CS_TEAM_CT == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")  && !StrEqual(weaponClassName, "weapon_glock")){
+						return Plugin_Stop;
+					}
+				}
+				else if(CS_TEAM_T == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_snowball") && !StrEqual(weaponClassName, "weapon_hkp2000") && !StrEqual(weaponClassName, "weapon_mp7")){
+						return Plugin_Stop;
+					}
 				}
 			}
-			else if(CS_TEAM_T == p.Team){
-				if(!StrEqual(weaponClassName, "weapon_snowball")){
-					return Plugin_Stop;
+			if(GetTeamClientCount(CS_TEAM_T) > 1 ){
+				if(CS_TEAM_CT == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")){
+						return Plugin_Stop;
+					}
+				}
+				else if(CS_TEAM_T == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_snowball")){
+						return Plugin_Stop;
+					}
 				}
 			}
 		}
-
+		default:{
+			return Plugin_Continue;
+		}
 	}
 	return Plugin_Continue;
 }
 
 public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &dmg, int &dmgType, int &weapon, float dmgForce[3], float dmgPos[3], int dmgCustom) {
-	if(Day == Type_OneInTheChamber || Type_HideNSeek){
+	if(CurrentDay == Day_OneInTheChamber || CurrentDay == Day_HideNSeek){
 		if(dmgType == DMG_FALL && dmg <= 100){
 			dmg = 0.0;
 			return Plugin_Changed;
@@ -271,7 +267,7 @@ public void OnClientDisconnect(int client){
 
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
 	if(FirstRound){
-		Day = Type_Normal;
+		CurrentDay = Day_Normal;
 		RatDay_Normal();
 		FirstRound = false;
 	}
@@ -291,58 +287,58 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 		*/
 		ForceDay = false;
 		if(RatDay <= NormalChance.IntValue){
-			Day = Type_Normal;
+			CurrentDay = Day_Normal;
 			RatDay_Normal();
 		}
 		else{
 			switch(SpecialDay){
 			//1 BigJug 
 				case 1:{
-						Day = Type_BigJug;
-						RatDay_BigJug();
-					}
+					CurrentDay = Day_BigJug;
+					RatDay_BigJug();
+				}
 			//2 Snowball Fight
 				case 2:{
-						Day = Type_Snowball;
-						RatDay_SnowballFight();
-					}
+					CurrentDay = Day_Snowball;
+					RatDay_SnowballFight();
+				}
 			//3 HideNSeek
 				case 3:{
-						if(GetClientCount(true)>=4){
-							Day = Type_HideNSeek;
-							RatDay_HideNSeek();
-						}
-						else{
-							PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x024 players \x01for \x06Hide N Seek\x01!");
-							Day = Type_Normal;
-							RatDay_Normal();
-						}
+					if(GetClientCount(true)>=4){
+						CurrentDay = Day_HideNSeek;
+						RatDay_HideNSeek();
 					}
+					else{
+						PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x024 players \x01for \x06Hide N Seek\x01!");
+						CurrentDay = Day_Normal;
+						RatDay_Normal();
+					}
+				}
 			//4 HEThrow
 				case 4:{
-						Day = Type_HEThrow;
-						RatDay_HeThrow();
-					}
+					CurrentDay = Day_HEThrow;
+					RatDay_HeThrow();
+				}
 			//5 SanicSpeed
 				case 5:{
-						Day = Type_Sanic;
-						RatDay_SanicSpeed();
-					}
+					CurrentDay = Day_Sanic;
+					RatDay_SanicSpeed();
+				}
 			//6 LowGrav
 				case 6:{
-						Day = Type_LowGravity;
-						RatDay_LowGravity();
-					}
+					CurrentDay = Day_LowGravity;
+					RatDay_LowGravity();
+				}
 			//7 Bumpy
 				case 7:{
-						Day = Type_Bumpy;
-						RatDay_Bumpy();
-					}
+					CurrentDay = Day_Bumpy;
+					RatDay_Bumpy();
+				}
 			//8 OneInTheChamber
 				case 8:{
-						Day = Type_OneInTheChamber;
-						RatDay_OneInTheChamber();
-					}
+					CurrentDay = Day_OneInTheChamber;
+					RatDay_OneInTheChamber();
+				}
 			}
 		}
 	}
@@ -386,7 +382,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 }
 
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast){
-	if(Day == Type_HideNSeek){
+	if(CurrentDay == Day_HideNSeek){
 		CCSPlayer attacker = CCSPlayer.FromEvent(event, "attacker");
 		CCSPlayer victim = CCSPlayer.FromEvent(event, "userid");
 		int hpDamage;
@@ -407,11 +403,11 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	char weaponUsed[60];
 	GetEventString(event, "weapon", weaponUsed, sizeof(weaponUsed));
 	//PrintToChatAll(weaponused);
-	if(Day == Type_OneInTheChamber){
+	if(CurrentDay == Day_OneInTheChamber){
 		CWeapon wep = attacker.GetWeapon(CS_SLOT_SECONDARY);
 		wep.Ammo += 1;
 	}
-	if(Day == Type_HideNSeek){
+	if(CurrentDay == Day_HideNSeek){
 		if(StrEqual(weaponUsed, "taser", false)){
 			if(GetTeamClientCount(CS_TEAM_T) > 1){
 				victim.SwitchTeam(CS_TEAM_CT);
@@ -420,7 +416,7 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 			}
 		}
 	}
-	if(Day == Type_Bumpy){
+	if(CurrentDay == Day_Bumpy){
 		if(StrEqual(weaponUsed, "revolver", false)){
 			EmitSoundToAll("rats/bumpybumpy.mp3");
 		}
