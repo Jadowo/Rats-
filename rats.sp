@@ -39,8 +39,10 @@ ConVar FreezeTime;
 ConVar NormalChance;
 ConVar SnowballLimit;
 ConVar GrenadeLimit;
+ConVar BhopEnable;
 int SpecialDay;
 int RatDay;
+int totalplayers;
 bool FirstRound;
 bool ForceDay;
 enum DayType{
@@ -73,6 +75,7 @@ public void OnPluginStart(){
 	FreezeTime = FindConVar("mp_freezetime");
 	SnowballLimit = FindConVar("ammo_grenade_limit_snowballs");
 	GrenadeLimit = FindConVar("ammo_grenade_limit_total");
+	BhopEnable = FindConVar("sv_enablebunnyhopping");
 	AutoExecConfig(true, "plugin.rats");
 }
 
@@ -114,6 +117,7 @@ public void OnMapStart(){
 	AutoBalance.IntValue = 1;
 	SnowballLimit.IntValue = 1;
 	GrenadeLimit.IntValue = 4;
+	BhopEnable.IntValue = 1;
 }
 
 public Action Command_ForceDay(int client, int args){
@@ -189,6 +193,10 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 public void OnClientPutInServer(int client){
 	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
 	SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamageAlive);
+	CCSPlayer p = CCSPlayer(client);
+	if(!p.FakeClient){
+		totalplayers++;
+	}
 }
 
 public Action OnWeaponCanUse(int client, int weapon){
@@ -263,6 +271,10 @@ public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float
 
 public void OnClientDisconnect(int client){
 	SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
+	CCSPlayer p = CCSPlayer(client);
+	if(!p.FakeClient){
+		totalplayers--;
+	}
 }
 
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
@@ -272,7 +284,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 		FirstRound = false;
 	}
 	else{
-		/*
+		
 		if(RatDay <= NormalChance.IntValue){
 			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", RatDay);
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
@@ -284,61 +296,57 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
 		}
-		*/
+		
 		ForceDay = false;
 		if(RatDay <= NormalChance.IntValue){
 			CurrentDay = Day_Normal;
 			RatDay_Normal();
+			if(totalplayers < 4){
+				PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x074 players \x01to enable \x06Special Days!");
+			}
 		}
 		else{
 			switch(SpecialDay){
 			//1 BigJug 
 				case 1:{
-					CurrentDay = Day_BigJug;
-					RatDay_BigJug();
-				}
+						CurrentDay = Day_BigJug;
+						RatDay_BigJug();
+					}
 			//2 Snowball Fight
 				case 2:{
-					CurrentDay = Day_Snowball;
-					RatDay_SnowballFight();
-				}
+						CurrentDay = Day_Snowball;
+						RatDay_SnowballFight();
+					}
 			//3 HideNSeek
 				case 3:{
-					if(GetClientCount(true)>=4){
 						CurrentDay = Day_HideNSeek;
 						RatDay_HideNSeek();
 					}
-					else{
-						PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x024 players \x01for \x06Hide N Seek\x01!");
-						CurrentDay = Day_Normal;
-						RatDay_Normal();
-					}
-				}
 			//4 HEThrow
 				case 4:{
-					CurrentDay = Day_HEThrow;
-					RatDay_HeThrow();
-				}
+						CurrentDay = Day_HEThrow;
+						RatDay_HeThrow();
+					}
 			//5 SanicSpeed
 				case 5:{
-					CurrentDay = Day_Sanic;
-					RatDay_SanicSpeed();
-				}
+						CurrentDay = Day_Sanic;
+						RatDay_SanicSpeed();
+					}
 			//6 LowGrav
 				case 6:{
-					CurrentDay = Day_LowGravity;
-					RatDay_LowGravity();
-				}
+						CurrentDay = Day_LowGravity;
+						RatDay_LowGravity();
+					}
 			//7 Bumpy
 				case 7:{
-					CurrentDay = Day_Bumpy;
-					RatDay_Bumpy();
-				}
+						CurrentDay = Day_Bumpy;
+						RatDay_Bumpy();
+					}
 			//8 OneInTheChamber
 				case 8:{
-					CurrentDay = Day_OneInTheChamber;
-					RatDay_OneInTheChamber();
-				}
+						CurrentDay = Day_OneInTheChamber;
+						RatDay_OneInTheChamber();
+					}
 			}
 		}
 	}
@@ -346,38 +354,43 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 	Stop_Timers();
-	if(!ForceDay){
-		RatDay = GetRandomInt(1,100);
-	}
-	//Get Random Day
-	if(RatDay > NormalChance.IntValue){
-		if(!ForceDay){
-			SpecialDay = GetRandomInt(1, 8);
-		}
-		//Check for days that don't need to use buymenu
-		if((SpecialDay >= 2 && SpecialDay <= 4) || (SpecialDay >= 7 && SpecialDay <= 8)){
-			FreezeTime.IntValue = 0;
-			if(SpecialDay == 3){
-				AutoBalance.IntValue = 0;
-			}
-			else{
-				AutoBalance.IntValue = 1;
-			}
-		}
-		else{
-			AutoBalance.IntValue = 1;
-			FreezeTime.IntValue = 10;
-		}
-	}
-	else{
-			AutoBalance.IntValue = 1;
-			FreezeTime.IntValue = 10;
-	}
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient && p.Alive){
 			p.HeavyArmor = false;
 		}
+	}
+	if(!ForceDay){
+		RatDay = GetRandomInt(1,100);
+	}
+	//Get Random Day
+	if(RatDay > NormalChance.IntValue){
+		if(totalplayers >= 4){
+			if(!ForceDay){
+				SpecialDay = GetRandomInt(1, 8);
+			}
+			//Check for days that don't need to use buymenu
+			if((SpecialDay >= 2 && SpecialDay <= 4) || (SpecialDay >= 7 && SpecialDay <= 8)){
+				FreezeTime.IntValue = 0;
+				if(SpecialDay == 3){
+					AutoBalance.IntValue = 0;
+				}
+				else{
+					AutoBalance.IntValue = 1;
+				}
+			}
+			else{
+				AutoBalance.IntValue = 1;
+				FreezeTime.IntValue = 10;
+			}
+		}
+		else{
+			RatDay = NormalChance.IntValue;
+		}
+	}
+	else{
+			AutoBalance.IntValue = 1;
+			FreezeTime.IntValue = 10;
 	}
 }
 
