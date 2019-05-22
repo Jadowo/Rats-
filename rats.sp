@@ -41,6 +41,7 @@ ConVar SnowballLimit;
 ConVar GrenadeLimit;
 ConVar BhopEnable;
 ConVar ExoForward;
+ConVar PlayersForDays;
 int SpecialDay;
 int RatDay;
 int totalplayers;
@@ -79,6 +80,7 @@ public void OnPluginStart(){
 	GrenadeLimit = FindConVar("ammo_grenade_limit_total");
 	BhopEnable = FindConVar("sv_enablebunnyhopping");
 	ExoForward = FindConVar("sv_exojump_jumpbonus_forward");
+	PlayersForDays = CreateConVar("sm_specialdays_players", "4", "Number of player required for special day to be active");
 	AutoExecConfig(true, "plugin.rats");
 }
 
@@ -295,7 +297,7 @@ public void OnClientDisconnect(int client){
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
 	if(FirstRound){
 		CurrentDay = Day_Normal;
-		RatDay_Normal();
+		SpecialDay_Normal();
 		FirstRound = false;
 	}
 	else{
@@ -312,13 +314,12 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
 		}
 		*/
-		
 		ForceDay = false;
 		if(RatDay <= NormalChance.IntValue){
 			CurrentDay = Day_Normal;
-			RatDay_Normal();
-			if(totalplayers < 4){
-				PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x074 players \x01to enable \x06Special Days!");
+			SpecialDay_Normal();
+			if(totalplayers < PlayersForDays.IntValue){
+				PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x07%d players \x01to enable \x06Special Days!", PlayersForDays.IntValue);
 			}
 		}
 		else{
@@ -326,47 +327,47 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			//1 BigJug 
 				case 1:{
 					CurrentDay = Day_BigJug;
-					RatDay_BigJug();
+					SpecialDay_BigJug();
 				}
 			//2 Snowball Fight
 				case 2:{
 					CurrentDay = Day_Snowball;
-					RatDay_SnowballFight();
+					SpecialDay_SnowballFight();
 				}
 			//3 HideNSeek
 				case 3:{
 					CurrentDay = Day_HideNSeek;
-					RatDay_HideNSeek();
+					SpecialDay_HideNSeek();
 				}
 			//4 HEThrow
 				case 4:{
 					CurrentDay = Day_HEThrow;
-					RatDay_HeThrow();
+					SpecialDay_HeThrow();
 				}
 			//5 SanicSpeed
 				case 5:{
 					CurrentDay = Day_Sanic;
-					RatDay_SanicSpeed();
+					SpecialDay_SanicSpeed();
 				}
 			//6 LowGrav
 				case 6:{
 					CurrentDay = Day_LowGravity;
-					RatDay_LowGravity();
+					SpecialDay_LowGravity();
 				}
 			//7 Bumpy
 				case 7:{
 					CurrentDay = Day_Bumpy;
-					RatDay_Bumpy();
+					SpecialDay_Bumpy();
 				}
 			//8 OneInTheChamber
 				case 8:{
 					CurrentDay = Day_OneInTheChamber;
-					RatDay_OneInTheChamber();
+					SpecialDay_OneInTheChamber();
 				}
 			//9 BumpMine
 				case 9:{
 					CurrentDay = Day_ExoBump;
-					RatDay_ExoBump();
+					SpecialDay_ExoBump();
 				}
 			}
 		}
@@ -387,7 +388,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 	}
 	//Get Random Day
 	if(RatDay > NormalChance.IntValue){
-		if(totalplayers >= 4){
+		if(totalplayers >= PlayersForDays.IntValue){
 			if(!ForceDay){
 				SpecialDay = GetRandomInt(1, 9);
 			}
@@ -458,11 +459,11 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	}
 }
 
-public void RatDay_Normal(){
+public void SpecialDay_Normal(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Normal Day\x01!");
 }
 
-public void RatDay_BigJug(){
+public void SpecialDay_BigJug(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Fat Day\x01!");
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
@@ -480,7 +481,7 @@ public void RatDay_BigJug(){
 	}
 }
 
-public void RatDay_SnowballFight(){
+public void SpecialDay_SnowballFight(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Snowball Fight\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
@@ -513,7 +514,7 @@ public void RatDay_SnowballFight(){
 	}
 }
 
-public void RatDay_HideNSeek(){
+public void SpecialDay_HideNSeek(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Hide N Seek\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
@@ -575,7 +576,7 @@ public void RatDay_HideNSeek(){
 	}
 }
 
-public void RatDay_HeThrow(){
+public void SpecialDay_HeThrow(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06HE Throw\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true); 
@@ -594,7 +595,7 @@ public void RatDay_HeThrow(){
 	}
 }
 
-public void RatDay_SanicSpeed(){
+public void SpecialDay_SanicSpeed(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Sanic Day\x01!");
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
@@ -604,7 +605,7 @@ public void RatDay_SanicSpeed(){
 	}
 }
 
-public void RatDay_LowGravity(){
+public void SpecialDay_LowGravity(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Low Gravity\x01!");
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
@@ -614,7 +615,7 @@ public void RatDay_LowGravity(){
 	}
 }
 
-public void RatDay_Bumpy(){
+public void SpecialDay_Bumpy(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06R8 8/8 M8\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
@@ -637,7 +638,7 @@ public void RatDay_Bumpy(){
 	}
 }
 
-public void RatDay_OneInTheChamber(){
+public void SpecialDay_OneInTheChamber(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06One In The Chamber\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
@@ -661,7 +662,7 @@ public void RatDay_OneInTheChamber(){
 	}
 }
 
-public void RatDay_ExoBump(){
+public void SpecialDay_ExoBump(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06ExoBump Day\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
