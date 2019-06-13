@@ -11,7 +11,6 @@
 
 #define XG_PREFIX_CHAT " \x0A[\x0Bx\x08G\x0A]\x01 "
 #define XG_PREFIX_CHAT_ALERT " \x04[\x0Bx\x08G\x04]\x01 "
-#define XG_PREFIX_CHAT_WARN " \x07[\x0Bx\x08G\x07]\x01 "
 
 public Plugin myinfo = {
 	name = " [xG] Rats",
@@ -29,7 +28,6 @@ Handle TimerGiveTactNade;
 Handle TimerSeekerStart;
 Handle TimerRespawnHider;
 Handle TimerInfiniteR8;
-Handle TimerLastHider;
 ConVar AutoBalance;
 ConVar TaserRecharge;
 ConVar RoundTime;
@@ -211,81 +209,6 @@ public void OnClientPutInServer(int client){
 	}
 }
 
-public Action OnWeaponCanUse(int client, int weapon){
-	CCSPlayer p = CCSPlayer(client);
-	CWeapon wep = CWeapon.FromIndex(weapon);
-	char weaponClassName[32];
-	wep.GetClassname(weaponClassName, sizeof(weaponClassName));
-	//PrintToChatAll(weaponClassName);
-	switch(CurrentDay){
-		case Day_Snowball:{
-			if(!StrEqual(weaponClassName, "weapon_snowball")){
-				return Plugin_Stop;
-			}
-		}
-		case Day_HEThrow:{
-			if(!StrEqual(weaponClassName, "weapon_hegrenade")){
-				return Plugin_Stop;
-			}
-		}
-		case Day_Bumpy:{
-			if(!StrEqual(weaponClassName, "weapon_deagle")){
-				return Plugin_Stop;
-			}
-		}
-		case Day_OneInTheChamber:{
-			if(!StrEqual(weaponClassName, "weapon_deagle") && !StrEqual(weaponClassName, "weapon_knife")){
-				return Plugin_Stop;
-			}
-		}
-		case Day_HideNSeek:{
-			if(GetTeamClientCount(CS_TEAM_T) == 1 ){
-				if(CS_TEAM_CT == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")  && !StrEqual(weaponClassName, "weapon_glock")){
-						return Plugin_Stop;
-					}
-				}
-				else if(CS_TEAM_T == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_snowball") && !StrEqual(weaponClassName, "weapon_hkp2000") && !StrEqual(weaponClassName, "weapon_mp7")){
-						return Plugin_Stop;
-					}
-				}
-			}
-			if(GetTeamClientCount(CS_TEAM_T) > 1 ){
-				if(CS_TEAM_CT == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")){
-						return Plugin_Stop;
-					}
-				}
-				else if(CS_TEAM_T == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_snowball")){
-						return Plugin_Stop;
-					}
-				}
-			}
-		}
-		case Day_ExoBump:{
-			if(!StrEqual(weaponClassName, "weapon_shield") && !StrEqual(weaponClassName, "weapon_bumpmine")){
-				return Plugin_Stop;
-			}
-		}
-		default:{
-			return Plugin_Continue;
-		}
-	}
-	return Plugin_Continue;
-}
-
-public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &dmg, int &dmgType, int &weapon, float dmgForce[3], float dmgPos[3], int dmgCustom) {
-	if(CurrentDay == Day_OneInTheChamber || CurrentDay == Day_HideNSeek){
-		if(dmgType == DMG_FALL && dmg <= 100){
-			dmg = 0.0;
-			return Plugin_Changed;
-		}
-	}
-	return Plugin_Continue;
-}
-
 public void OnClientDisconnect(int client){
 	SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
 	CCSPlayer p = CCSPlayer(client);
@@ -295,6 +218,7 @@ public void OnClientDisconnect(int client){
 }
 
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
+	bool daysAlert;
 	if(FirstRound){
 		CurrentDay = Day_Normal;
 		SpecialDay_Normal();
@@ -319,7 +243,13 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			CurrentDay = Day_Normal;
 			SpecialDay_Normal();
 			if(totalplayers < PlayersForDays.IntValue){
-				PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x07%d players \x01to enable \x06Special Days!", PlayersForDays.IntValue);
+				if(daysAlert){
+					PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x07%d players \x01to enable \x06Special Days!", PlayersForDays.IntValue);
+					daysAlert = false;
+				}
+				else{
+					daysAlert = true;
+				}
 			}
 		}
 		else{
@@ -392,6 +322,9 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 			if(!ForceDay){
 				SpecialDay = GetRandomInt(1, 9);
 			}
+			if(totalplayers < 4 && SpecialDay == 3){
+				SpecialDay = 2;
+			}
 			//Check for days that don't need to use buymenu
 			if((SpecialDay >= 2 && SpecialDay <= 4) || (SpecialDay >= 7 && SpecialDay <= 9)){
 				FreezeTime.IntValue = 0;
@@ -417,18 +350,87 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 	}
 }
 
+public Action OnWeaponCanUse(int client, int weapon){
+	CCSPlayer p = CCSPlayer(client);
+	CWeapon wep = CWeapon.FromIndex(weapon);
+	char weaponClassName[32];
+	wep.GetClassname(weaponClassName, sizeof(weaponClassName));
+	//PrintToChatAll(weaponClassName);
+	switch(CurrentDay){
+		case Day_Snowball:{
+			if(!StrEqual(weaponClassName, "weapon_snowball")){return Plugin_Stop;}
+		}
+		case Day_HEThrow:{
+			if(!StrEqual(weaponClassName, "weapon_hegrenade")){return Plugin_Stop;}
+		}
+		case Day_Bumpy:{
+			if(!StrEqual(weaponClassName, "weapon_deagle")){return Plugin_Stop;}
+		}
+		case Day_OneInTheChamber:{
+			if(!StrEqual(weaponClassName, "weapon_deagle") && !StrEqual(weaponClassName, "weapon_knife")){return Plugin_Stop;}
+		}
+		case Day_HideNSeek:{
+			if(GetTeamClientCount(CS_TEAM_T) == 1 ){
+				if(CS_TEAM_CT == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")  && !StrEqual(weaponClassName, "weapon_glock")){
+						return Plugin_Stop;
+					}
+				}
+				else if(CS_TEAM_T == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_snowball") && !StrEqual(weaponClassName, "weapon_hkp2000") && !StrEqual(weaponClassName, "weapon_mp7")){
+						return Plugin_Stop;
+					}
+				}
+			}
+			if(GetTeamClientCount(CS_TEAM_T) > 1 ){
+				if(CS_TEAM_CT == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")){
+						return Plugin_Stop;
+					}
+				}
+				else if(CS_TEAM_T == p.Team){
+					if(!StrEqual(weaponClassName, "weapon_snowball")){
+						return Plugin_Stop;
+					}
+				}
+			}
+		}
+		case Day_ExoBump:{
+			if(!StrEqual(weaponClassName, "weapon_shield") && !StrEqual(weaponClassName, "weapon_bumpmine")){
+				return Plugin_Stop;
+			}
+		}
+		default:{
+			return Plugin_Continue;
+		}
+	}
+	return Plugin_Continue;
+}
+
+public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &dmg, int &dmgType, int &weapon, float dmgForce[3], float dmgPos[3], int dmgCustom) {
+	if(CurrentDay == Day_OneInTheChamber || CurrentDay == Day_ExoBump){
+		if(dmgType == DMG_FALL){
+			dmg = 0.0;
+			return Plugin_Changed;
+		}
+	}
+	return Plugin_Continue;
+}
+
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast){
 	if(CurrentDay == Day_HideNSeek){
 		CCSPlayer attacker = CCSPlayer.FromEvent(event, "attacker");
 		CCSPlayer victim = CCSPlayer.FromEvent(event, "userid");
 		int hpDamage;
+		int hpLeft;
 		char weaponUsed[64];
 		GetEventString(event, "weapon", weaponUsed, sizeof(weaponUsed));
 		//PrintToChatAll(weaponused);
 		GetEventInt(event, "dmg_health", hpDamage);
+		GetEventInt(event, "health", hpLeft);
 		if(StrEqual(weaponUsed, "taser", false)){
-			attacker.Health += 10;
-			victim.Speed = 0.5;
+			attacker.Health += hpDamage/2;
+			victim.Speed = hpLeft/100.0;
 		}
 	}
 }
@@ -444,11 +446,33 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		wep.Ammo += 1;
 	}
 	if(CurrentDay == Day_HideNSeek){
-		if(StrEqual(weaponUsed, "taser", false)){
-			if(GetTeamClientCount(CS_TEAM_T) > 1){
+		if(GetTeamClientCount(CS_TEAM_T) > 1){
+			if(StrEqual(weaponUsed, "taser", false)){
 				victim.SwitchTeam(CS_TEAM_CT);
 				attacker.Speed += 0.05;
-				TimerRespawnHider = CreateTimer(1.0, Timer_RespawnHider, victim);
+				TimerRespawnHider = CreateTimer(1.0, Timer_RespawnHider, victim, TIMER_FLAG_NO_MAPCHANGE);
+			}
+			else{
+				victim.SwitchTeam(CS_TEAM_CT);
+			}
+		}
+		else{
+			CCSPlayer p;
+			while(CCSPlayer.Next(p)){
+				if(p.InGame && !p.FakeClient && p.Alive){
+					if(CS_TEAM_T == p.Team){
+						GivePlayerWeapon(p, "weapon_mp5sd");
+						GivePlayerWeapon(p, "weapon_usp_silencer");
+						p.Armor = true;
+						p.Armor = 200;
+						p.Speed = 2.5;
+						p.Health = 200;
+					}
+					else if(CS_TEAM_CT == p.Team){
+						GivePlayerWeapon(p, "weapon_glock");
+						p.Speed = 1.0;
+					}
+				}
 			}
 		}
 	}
@@ -485,8 +509,8 @@ public void SpecialDay_SnowballFight(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Snowball Fight\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
-	TimerGiveSnowballT = CreateTimer(1.0, Timer_GiveSnowballT, _, TIMER_REPEAT);
-	TimerGiveSnowballCT = CreateTimer(1.0, Timer_GiveSnowballCT, _, TIMER_REPEAT);
+	TimerGiveSnowballT = CreateTimer(1.0, Timer_GiveSnowballT, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	TimerGiveSnowballCT = CreateTimer(1.0, Timer_GiveSnowballCT, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient && p.Alive){
@@ -522,7 +546,6 @@ public void SpecialDay_HideNSeek(){
 	TimerGiveSnowballT = CreateTimer(60.0, Timer_GiveSnowballT,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	TimerSeekerStart = CreateTimer(60.0, Timer_SeekerStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	TimerPlayTaunt = CreateTimer(60.0, Timer_PlayTaunt, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	TimerLastHider = CreateTimer(10.0, Timer_LastHider, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have \x0C60 seconds \x01to hide!");
 	CCSPlayer randPlayers[64];
 	CCSPlayer realPlayers[64];
@@ -541,15 +564,16 @@ public void SpecialDay_HideNSeek(){
 			}
 		}
 	}
+	float seekersPlayers = totalplayers / 4.0;
 	//Random Players
-	for (i = 0; i <= GetClientCount(true)/4; i++){
+	for (i = 0; i <= RoundFloat(seekersPlayers); i++){
 		randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
 		chosen = count-1;
 		while(randPlayers[chosen] == randPlayers[i]){
 			randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
 			chosen--;
 		}
-		char buf[50];
+		char buf[64];
 		GetClientName(randPlayers[i].Index, buf, sizeof(buf));
 		PrintToChatAll(XG_PREFIX_CHAT..."Seekers: %s", buf);
 		SetEntPropFloat(randPlayers[i].Index, Prop_Data, "m_flLaggedMovementValue", 0.0);
@@ -580,7 +604,7 @@ public void SpecialDay_HeThrow(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06HE Throw\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true); 
-	TimerGiveHENade = CreateTimer(1.0, Timer_GiveHEGrenade, _, TIMER_REPEAT);
+	TimerGiveHENade = CreateTimer(1.0, Timer_GiveHEGrenade, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient && p.Alive){
@@ -620,7 +644,7 @@ public void SpecialDay_Bumpy(){
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 	EmitSoundToAll("rats/bumpybumpy.mp3");
-	TimerInfiniteR8 = CreateTimer(0.3, Timer_InfiniteR8, _, TIMER_REPEAT);
+	TimerInfiniteR8 = CreateTimer(0.3, Timer_InfiniteR8, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	CCSPlayer p;
 	CWeapon wep;
 	while(CCSPlayer.Next(p)){
@@ -812,29 +836,6 @@ public Action Timer_RespawnHider(Handle timer, CCSPlayer victim){
 	GivePlayerWeapon(victim, "weapon_taser");
 }
 
-public Action Timer_LastHider(Handle timer){
-	CCSPlayer p;
-	if(GetTeamClientCount(CS_TEAM_T) == 1){
-		while(CCSPlayer.Next(p)){
-			if(p.InGame && !p.FakeClient && p.Alive){
-				if(CS_TEAM_T == p.Team){
-					GivePlayerWeapon(p, "weapon_mp5sd");
-					GivePlayerWeapon(p, "weapon_usp_silencer");
-					p.Armor = true;
-					p.Armor = 200;
-					p.Speed = 2.5;
-					p.Health = 200;
-				}
-				else if(CS_TEAM_CT == p.Team){
-					GivePlayerWeapon(p, "weapon_glock");
-					p.Speed = 1.0;
-				}
-				delete TimerLastHider;
-			}
-		}
-	}
-}
-
 public Action Timer_InfiniteR8(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
@@ -869,8 +870,5 @@ public Action Stop_Timers(){
 	}
 	if(TimerRespawnHider != null){
 		delete TimerRespawnHider;
-	}
-	if(TimerLastHider != null){
-		delete TimerLastHider;
 	}
 }
