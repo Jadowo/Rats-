@@ -45,6 +45,7 @@ int RatDay;
 int totalplayers;
 bool FirstRound;
 bool ForceDay;
+bool daysAlert;
 enum DayType{
 	Day_Normal = 0,
 	Day_BigJug,
@@ -218,7 +219,6 @@ public void OnClientDisconnect(int client){
 }
 
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
-	bool daysAlert;
 	if(FirstRound){
 		CurrentDay = Day_Normal;
 		SpecialDay_Normal();
@@ -414,6 +414,15 @@ public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float
 			return Plugin_Changed;
 		}
 	}
+	if(CurrentDay == Day_OneInTheChamber){
+		char weaponUsed[64];
+		GetEdictClassname(weapon, weaponUsed, sizeof(weaponUsed));
+		//PrintToChatAll(weaponUsed);
+		if(StrEqual(weaponUsed, "weapon_deagle", false)){
+			dmg = 1000.0;
+			return Plugin_Changed;
+		}
+	}
 	return Plugin_Continue;
 }
 
@@ -425,7 +434,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		int hpLeft;
 		char weaponUsed[64];
 		GetEventString(event, "weapon", weaponUsed, sizeof(weaponUsed));
-		//PrintToChatAll(weaponused);
+		//PrintToChatAll(weaponUsed);
 		GetEventInt(event, "dmg_health", hpDamage);
 		GetEventInt(event, "health", hpLeft);
 		if(StrEqual(weaponUsed, "taser", false)){
@@ -676,8 +685,6 @@ public void SpecialDay_OneInTheChamber(){
 					wep.Kill();
 				}
 			}
-			p.Health = 1;
-			p.Armor = 1;
 			GivePlayerWeapon(p, "weapon_knife");
 			wep = GivePlayerWeapon(p, "weapon_revolver");
 			wep.Ammo = 1;
