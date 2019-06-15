@@ -225,7 +225,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 		FirstRound = false;
 	}
 	else{
-		/*
+		
 		if(RatDay <= NormalChance.IntValue){
 			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", RatDay);
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
@@ -237,9 +237,9 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
 		}
-		*/
+		
 		ForceDay = false;
-		if(RatDay <= NormalChance.IntValue){
+		if(RatDay < NormalChance.IntValue){
 			CurrentDay = Day_Normal;
 			SpecialDay_Normal();
 			if(totalplayers < PlayersForDays.IntValue){
@@ -322,7 +322,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 			if(!ForceDay){
 				SpecialDay = GetRandomInt(1, 9);
 			}
-			if(totalplayers < 4 && SpecialDay == 3){
+			if(totalplayers < PlayersForDays.IntValue && SpecialDay == 3 && !ForceDay){
 				SpecialDay = 2;
 			}
 			//Check for days that don't need to use buymenu
@@ -465,22 +465,20 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 				victim.SwitchTeam(CS_TEAM_CT);
 			}
 		}
-		else{
+		if(GetTeamClientCount(CS_TEAM_T) == 1){
 			CCSPlayer p;
 			while(CCSPlayer.Next(p)){
-				if(p.InGame && !p.FakeClient && p.Alive){
-					if(CS_TEAM_T == p.Team){
-						GivePlayerWeapon(p, "weapon_mp5sd");
-						GivePlayerWeapon(p, "weapon_usp_silencer");
-						p.Armor = true;
-						p.Armor = 200;
-						p.Speed = 2.5;
-						p.Health = 200;
-					}
-					else if(CS_TEAM_CT == p.Team){
-						GivePlayerWeapon(p, "weapon_glock");
-						p.Speed = 1.0;
-					}
+				if(CS_TEAM_T == p.Team){
+					GivePlayerWeapon(p, "weapon_mp5sd");
+					GivePlayerWeapon(p, "weapon_usp_silencer");
+					p.Armor = true;
+					p.Armor = 200;
+					p.Speed = 2.5;
+					p.Health = 200;
+				}
+				else if(CS_TEAM_CT == p.Team){
+					GivePlayerWeapon(p, "weapon_glock");
+					p.Speed = 1.0;
 				}
 			}
 		}
@@ -573,9 +571,12 @@ public void SpecialDay_HideNSeek(){
 			}
 		}
 	}
-	float seekersPlayers = totalplayers / 4.0;
+	float seekerPlayers = totalplayers / 4.0;
+	if(totalplayers < 4){
+		seekerPlayers = 1.0;
+	}
 	//Random Players
-	for (i = 0; i <= RoundFloat(seekersPlayers); i++){
+	for (i = 0; i <= RoundFloat(seekerPlayers)-1; i++){
 		randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
 		chosen = count-1;
 		while(randPlayers[chosen] == randPlayers[i]){
@@ -598,7 +599,7 @@ public void SpecialDay_HideNSeek(){
 	while(CCSPlayer.Next(player)){
 		if(player.InGame && player.Alive){
 			SetEntProp(player.Index, Prop_Data, "m_takedamage", 0, 1);
-			for (i = 0; i <= GetClientCount(true)/4; i++){
+			for (i = 0; i <= RoundFloat(seekerPlayers)-1; i++){
 				if(player != randPlayers[i]){
 					player.SwitchTeam(CS_TEAM_T);
 					player.Speed = 0.95;
