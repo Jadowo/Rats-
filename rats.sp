@@ -45,7 +45,6 @@ int RatDay;
 int totalplayers;
 bool FirstRound;
 bool ForceDay;
-bool daysAlert;
 enum DayType{
 	Day_Normal = 0,
 	Day_BigJug,
@@ -225,7 +224,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 		FirstRound = false;
 	}
 	else{
-		
+		/*
 		if(RatDay <= NormalChance.IntValue){
 			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", RatDay);
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
@@ -237,18 +236,14 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
 		}
-		
-		ForceDay = false;
-		if(RatDay < NormalChance.IntValue){
+		*/
+		if(RatDay <= NormalChance.IntValue){
 			CurrentDay = Day_Normal;
 			SpecialDay_Normal();
 			if(totalplayers < PlayersForDays.IntValue){
-				if(daysAlert){
+				int dayAlert = GetRandomInt(1, 3);
+				if(dayAlert == GetRandomInt(1, 3)){
 					PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x07%d players \x01to enable \x06Special Days!", PlayersForDays.IntValue);
-					daysAlert = false;
-				}
-				else{
-					daysAlert = true;
 				}
 			}
 		}
@@ -348,6 +343,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 			AutoBalance.IntValue = 1;
 			FreezeTime.IntValue = 10;
 	}
+	ForceDay = false;
 }
 
 public Action OnWeaponCanUse(int client, int weapon){
