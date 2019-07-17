@@ -12,6 +12,23 @@
 #define XG_PREFIX_CHAT " \x0A[\x0Bx\x08G\x0A]\x01 "
 #define XG_PREFIX_CHAT_ALERT " \x04[\x0Bx\x08G\x04]\x01 "
 
+#define MAX_TAUNTS 13
+char taunts[MAX_TAUNTS][PLATFORM_MAX_PATH] = {
+"rats/bumpybumpy.mp3",
+"rats/bb2.mp3",
+"rats/bb3.mp3",
+"rats/bb4.mp3",
+"rats/bb5.mp3",
+"rats/bb6.mp3",
+"rats/bb7.mp3",
+"rats/bb8.mp3",
+"rats/bb9.mp3",
+"rats/bb10.mp3",
+"rats/bb11.mp3",
+"rats/bb12.mp3",
+"rats/bb13.mp3"
+};
+
 public Plugin myinfo = {
 	name = " [xG] Rats",
 	author = PLUGIN_AUTHOR,
@@ -68,6 +85,7 @@ public void OnPluginStart(){
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_hurt", Event_PlayerHurt);
 	NormalChance = CreateConVar("sm_normal_chance", "70", "Percentage out of 100 for normal day");
+	PlayersForDays = CreateConVar("sm_specialdays_players", "4", "Number of player required for special day to be active");
 	AutoBalance = FindConVar("mp_autoteambalance");
 	TaserRecharge = FindConVar("mp_taser_recharge_time");
 	RoundTime = FindConVar("mp_roundtime");
@@ -78,7 +96,6 @@ public void OnPluginStart(){
 	GrenadeLimit = FindConVar("ammo_grenade_limit_total");
 	BhopEnable = FindConVar("sv_enablebunnyhopping");
 	ExoForward = FindConVar("sv_exojump_jumpbonus_forward");
-	PlayersForDays = CreateConVar("sm_specialdays_players", "4", "Number of player required for special day to be active");
 	AutoExecConfig(true, "plugin.rats");
 }
 
@@ -329,22 +346,25 @@ public Action OnWeaponCanUse(int client, int weapon){
 	CCSPlayer p = CCSPlayer(client);
 	CWeapon wep = CWeapon.FromIndex(weapon);
 	char weaponClassName[32];
-	wep.GetClassname(weaponClassName, sizeof(weaponClassName));
-	//PrintToChatAll(weaponClassName);
 	switch(CurrentDay){
 		case Day_Snowball:{
+			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(!StrEqual(weaponClassName, "weapon_snowball")){return Plugin_Stop;}
 		}
 		case Day_HEThrow:{
+			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(!StrEqual(weaponClassName, "weapon_hegrenade")){return Plugin_Stop;}
 		}
 		case Day_Bumpy:{
+			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(!StrEqual(weaponClassName, "weapon_deagle")){return Plugin_Stop;}
 		}
 		case Day_OneInTheChamber:{
+			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(!StrEqual(weaponClassName, "weapon_deagle") && !StrEqual(weaponClassName, "weapon_knife")){return Plugin_Stop;}
 		}
 		case Day_HideNSeek:{
+			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(GetTeamClientCount(CS_TEAM_T) == 1 ){
 				if(CS_TEAM_CT == p.Team){
 					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")  && !StrEqual(weaponClassName, "weapon_deagle")){
@@ -371,6 +391,7 @@ public Action OnWeaponCanUse(int client, int weapon){
 			}
 		}
 		case Day_ExoBump:{
+			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(!StrEqual(weaponClassName, "weapon_shield") && !StrEqual(weaponClassName, "weapon_bumpmine")){
 				return Plugin_Stop;
 			}
@@ -527,13 +548,13 @@ public void SpecialDay_HideNSeek(){
 	PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have \x0C60 seconds \x01to hide!");
 	CCSPlayer randPlayers[64];
 	CCSPlayer realPlayers[64];
-	int i, chosen, count = 0;
+	int chosen, count = 0;
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient){
 			realPlayers[count] = p;
 			count++;
-			for(i = 0; i <= CS_SLOT_C4;i++){
+			for(int i = 0; i <= CS_SLOT_C4;i++){
 				CWeapon wep;
 				while((wep = p.GetWeapon(i)) != NULL_CWEAPON){
 					p.RemoveItem(wep);
@@ -543,11 +564,9 @@ public void SpecialDay_HideNSeek(){
 		}
 	}
 	float seekerPlayers = totalplayers / 4.0;
-	if(totalplayers < 4){
-		seekerPlayers = 1.0;
-	}
+	if(totalplayers < 4){seekerPlayers = 1.0;}
 	//Random Players
-	for (i = 0; i <= RoundFloat(seekerPlayers)-1; i++){
+	for (int i = 0; i < RoundFloat(seekerPlayers); i++){
 		randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
 		chosen = count-1;
 		while(randPlayers[chosen] == randPlayers[i]){
@@ -557,7 +576,7 @@ public void SpecialDay_HideNSeek(){
 		char buf[64];
 		GetClientName(randPlayers[i].Index, buf, sizeof(buf));
 		PrintToChatAll(XG_PREFIX_CHAT..."Seekers: %s", buf);
-		SetEntPropFloat(randPlayers[i].Index, Prop_Data, "m_flLaggedMovementValue", 0.0);
+		randPlayers[i].Speed = 0.0;
 		Handle hMsg = StartMessageOne("Fade", randPlayers[i].Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 		PbSetInt(hMsg, "duration", 5000);
 		PbSetInt(hMsg, "hold_time", 1500);
@@ -570,7 +589,7 @@ public void SpecialDay_HideNSeek(){
 	while(CCSPlayer.Next(player)){
 		if(player.InGame && player.Alive){
 			SetEntProp(player.Index, Prop_Data, "m_takedamage", 0, 1);
-			for (i = 0; i <= RoundFloat(seekerPlayers)-1; i++){
+			for (int i = 0; i < RoundFloat(seekerPlayers); i++){
 				if(player != randPlayers[i]){
 					player.SwitchTeam(CS_TEAM_T);
 					player.Speed = 0.95;
@@ -758,46 +777,8 @@ public Action Timer_PlayTaunt(Handle timer){
 			GetClientAbsOrigin(p.Index, vec);
 			vec[2] += 10;
 			GetClientEyePosition(p.Index, vec);
-			int taunt = GetRandomInt(1, 13);
-			if(taunt == 1){
-				EmitAmbientSound("rats/bumpybumpy.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 2){
-				EmitAmbientSound("rats/bb2.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 3){
-				EmitAmbientSound("rats/bb3.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 4){
-				EmitAmbientSound("rats/bb4.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 5){
-				EmitAmbientSound("rats/bb5.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 6){
-				EmitAmbientSound("rats/bb6.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 7){
-				EmitAmbientSound("rats/bb7.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 8){
-				EmitAmbientSound("rats/bb8.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 9){
-				EmitAmbientSound("rats/bb9.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 10){
-				EmitAmbientSound("rats/bb10.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 11){
-				EmitAmbientSound("rats/bb11.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 12){
-				EmitAmbientSound("rats/bb12.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
-			else if(taunt == 13){
-				EmitAmbientSound("rats/bb13.mp3", vec, p.Index, SNDLEVEL_GUNFIRE);
-			}
+			int taunt = GetRandomInt(0, MAX_TAUNTS - 1);
+			EmitAmbientSound(taunts[taunt], vec, p.Index, SNDLEVEL_GUNFIRE);
 		}
 	}
 }
