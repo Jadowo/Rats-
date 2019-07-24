@@ -43,7 +43,6 @@ Handle TimerPlayTaunt;
 Handle TimerGiveHENade;
 Handle TimerGiveTactNade;
 Handle TimerSeekerStart;
-Handle TimerRespawnHider;
 Handle TimerInfiniteR8;
 ConVar AutoBalance;
 ConVar TaserRecharge;
@@ -59,9 +58,10 @@ ConVar ExoForward;
 ConVar PlayersForDays;
 int SpecialDay;
 int RatDay;
-int totalplayers;
+int TotalPlayers;
 bool FirstRound;
 bool ForceDay;
+bool ExoBumpGuns;
 enum DayType{
 	Day_Normal = 0,
 	Day_BigJug,
@@ -72,7 +72,10 @@ enum DayType{
 	Day_LowGravity,
 	Day_Bumpy,
 	Day_OneInTheChamber,
-	Day_ExoBump
+	Day_ExoBump,
+	Day_RiotShield,
+	Day_ExoBoot,
+	Day_BumpMine
 };
 DayType CurrentDay;
 
@@ -153,7 +156,10 @@ public Action Command_ForceDay(int client, int args){
 	menu.AddItem("lowgrav", "Low Gravity");
 	menu.AddItem("bumpy", "Bumpy Bumpy");
 	menu.AddItem("onechamber", "One In The Chamber");
-	menu.AddItem("exobump", "ExoBump Day");
+	menu.AddItem("exobump", "RiotExoBump");
+	menu.AddItem("riot", "Riot Shields");
+	menu.AddItem("exoboot", "Exoboots");
+	menu.AddItem("bumpmine", "Bump Mines");
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -200,6 +206,18 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 			RatDay = NormalChance.IntValue+1;
 			SpecialDay = 9;
 			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06ExoBump Day\x01.");
+		}else if (StrEqual(dayName, "riot")){
+			RatDay = NormalChance.IntValue+1;
+			SpecialDay = 10;
+			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Riot Shields\x01.");
+		}else if (StrEqual(dayName, "exoboot")){
+			RatDay = NormalChance.IntValue+1;
+			SpecialDay = 11;
+			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Exoboots\x01.");
+		}else if (StrEqual(dayName, "bumpmine")){
+			RatDay = NormalChance.IntValue+1;
+			SpecialDay = 12;
+			ShowActivity2(client, XG_PREFIX_CHAT, "Next Day \x07forced \x01to \x06Bump Mines\x01.");
 		}
 		ForceDay = true;
 	}
@@ -211,22 +229,16 @@ public int Menu_ForceDay(Menu menu, MenuAction action, int client, int itemNum){
 public void OnClientPutInServer(int client){
 	SDKHook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
 	SDKHook(client, SDKHook_OnTakeDamageAlive, OnTakeDamageAlive);
-	CCSPlayer p = CCSPlayer(client);
-	if(!p.FakeClient){
-		totalplayers++;
-	}
 }
 
 public void OnClientDisconnect(int client){
 	SDKUnhook(client, SDKHook_WeaponCanUse, OnWeaponCanUse);
-	CCSPlayer p = CCSPlayer(client);
-	if(!p.FakeClient){
-		totalplayers--;
-	}
 }
 
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
 	if(FirstRound){
+		AutoBalance.IntValue = 1;
+		FreezeTime.IntValue = 10;
 		CurrentDay = Day_Normal;
 		SpecialDay_Normal();
 		FirstRound = false;
@@ -237,22 +249,31 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", RatDay);
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
+			if(ForceDay){
+				PrintToChatAll(XG_PREFIX_CHAT..."ForceDay: True");
+			}else{
+				PrintToChatAll(XG_PREFIX_CHAT..."ForceDay: False");
+			}
 		}
 		if(RatDay > NormalChance.IntValue){
 			PrintToChatAll(XG_PREFIX_CHAT..."Day Number: \x06%d", RatDay);
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Number: \x06%d", SpecialDay);
 			PrintToChatAll(XG_PREFIX_CHAT..."Normal Day Chance: \x06%d%", NormalChance.IntValue);
 			PrintToChatAll(XG_PREFIX_CHAT..."Special Day Chance: \x06%d%", 100-NormalChance.IntValue);
+			if(ForceDay){
+				PrintToChatAll(XG_PREFIX_CHAT..."ForceDay: True");
+			}else{
+				PrintToChatAll(XG_PREFIX_CHAT..."ForceDay: False");
+			}
 		}
 		*/
 		if(RatDay <= NormalChance.IntValue){
 			CurrentDay = Day_Normal;
 			SpecialDay_Normal();
-			if(totalplayers < PlayersForDays.IntValue){
-				int dayAlert = GetRandomInt(1, 3);
-				if(dayAlert == GetRandomInt(1, 3)){
-					PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x07%d players \x01to enable \x06Special Days!", PlayersForDays.IntValue);
-				}
+			PlayerCount();
+			if(TotalPlayers < PlayersForDays.IntValue){
+				int dayAlert = GetRandomInt(1, 2);
+				if(dayAlert == GetRandomInt(1, 2)){PrintToChatAll(XG_PREFIX_CHAT_ALERT..."Need at least \x07%d players \x01to enable \x06Special Days!", PlayersForDays.IntValue);}
 			}
 		}
 		else{
@@ -266,16 +287,53 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 				case 7:{CurrentDay = Day_Bumpy;SpecialDay_Bumpy();}
 				case 8:{CurrentDay = Day_OneInTheChamber;SpecialDay_OneInTheChamber();}
 				case 9:{CurrentDay = Day_ExoBump;SpecialDay_ExoBump();}
+				case 10:{CurrentDay = Day_RiotShield;SpecialDay_RiotShield();}
+				case 11:{CurrentDay = Day_ExoBoot;SpecialDay_ExoBoot();}
+				case 12:{CurrentDay = Day_BumpMine;SpecialDay_BumpMine();}
 			}
 		}
 	}
+	ForceDay = false;
 }
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
-	Stop_Timers();
+	if(CurrentDay == Day_Snowball){
+		if(TimerGiveSnowballCT != null){delete TimerGiveSnowballCT;}
+		if(TimerGiveSnowballT != null){delete TimerGiveSnowballT;}
+	}
+	if(CurrentDay == Day_HideNSeek){
+		int countCT = GetTeamClientCount(CS_TEAM_CT);
+		int countT = GetTeamClientCount(CS_TEAM_T);
+		if(countCT+1 != countT || countCT-1 != countT){
+			if(countCT > countT){
+				CCSPlayer p;
+				while(CCSPlayer.Next(p)){
+					if(CS_TEAM_CT == p.Team){p.SwitchTeam(CS_TEAM_T);}
+					break;
+				}
+			}
+			if(countT > countCT){
+				CCSPlayer p;
+				while(CCSPlayer.Next(p)){
+					if(CS_TEAM_T == p.Team){p.SwitchTeam(CS_TEAM_CT);}
+					break;
+				}
+			}
+		}
+		if(TimerGiveSnowballT != null){delete TimerGiveSnowballT;}
+		if(TimerGiveTactNade != null){delete TimerGiveTactNade;}
+		if(TimerPlayTaunt != null){delete TimerPlayTaunt;}
+		if(TimerSeekerStart != null){delete TimerSeekerStart;}
+	}
+	if(CurrentDay == Day_HEThrow){
+		if(TimerGiveHENade != null){delete TimerGiveHENade;}
+	}
+	if(CurrentDay == Day_Bumpy){
+		if(TimerInfiniteR8 != null){delete TimerInfiniteR8;}
+	}
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive){
+		if(p.InGame && p.Alive){
 			p.HeavyArmor = false;
 			SetEntProp(p.Index, Prop_Send, "m_passiveItems", 0, 1, 1);
 		}
@@ -285,61 +343,35 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 	}
 	//Get Random Day
 	if(RatDay > NormalChance.IntValue){
-		if(totalplayers >= PlayersForDays.IntValue){
+		PlayerCount();
+		if(TotalPlayers >= PlayersForDays.IntValue || ForceDay){
 			if(!ForceDay){
-				SpecialDay = GetRandomInt(1, 9);
+				SpecialDay = GetRandomInt(1, 12);
 			}
-			if(totalplayers < PlayersForDays.IntValue && SpecialDay == 3 && !ForceDay){
-				SpecialDay = GetRandomInt(4,9);
+			if(TotalPlayers < PlayersForDays.IntValue && SpecialDay == 3 && !ForceDay){
+				SpecialDay = GetRandomInt(4,12);
 			}
 			switch(SpecialDay){
-				case 1:{/*Day_BigJug*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 10;
-				}
-				case 2:{/*Day_Snowball*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 0;
-				}
-				case 3:{/*Day_HideNSeek*/
-					AutoBalance.IntValue = 0;
-					FreezeTime.IntValue = 0;
-				}
-				case 4:{/*Day_HEThrow*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 0;
-				}
-				case 5:{/*Day_Sanic*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 10;
-				}
-				case 6:{/*Day_LowGravity*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 10;
-				}
-				case 7:{/*Day_Bumpy*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 0;
-				}
-				case 8:{/*Day_OneInTheChamber*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 0;
-				}
-				case 9:{/*Day_ExoBump*/
-					AutoBalance.IntValue = 1;
-					FreezeTime.IntValue = 0;
-				}
+				case 1:{/*BigJug*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 2:{/*Snowball*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
+				case 3:{/*HideNSeek*/AutoBalance.IntValue = 0;FreezeTime.IntValue = 0;}
+				case 4:{/*HEThrow*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
+				case 5:{/*Sanic*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 6:{/*LowGravity*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 7:{/*Bumpy*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
+				case 8:{/*OneInTheChamber*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
+				case 9:{/*ExoBump*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 10:{/*RiotShield*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 11:{/*ExoBoot*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 12:{/*BumpMine*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
 			}
 		}
-		else{
-			RatDay = NormalChance.IntValue;
-		}
+		else{RatDay = NormalChance.IntValue;}
 	}
 	else{
-			AutoBalance.IntValue = 1;
-			FreezeTime.IntValue = 10;
+		AutoBalance.IntValue = 1;
+		FreezeTime.IntValue = 10;
 	}
-	ForceDay = false;
 }
 
 public Action OnWeaponCanUse(int client, int weapon){
@@ -367,19 +399,26 @@ public Action OnWeaponCanUse(int client, int weapon){
 			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
 			if(GetTeamClientCount(CS_TEAM_T) == 1 ){
 				if(CS_TEAM_CT == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")  && !StrEqual(weaponClassName, "weapon_deagle")){
+					if(!StrEqual(weaponClassName, "weapon_knife") && 
+					   !StrEqual(weaponClassName, "weapon_taser") && 
+					   !StrEqual(weaponClassName, "weapon_tagrenade") && 
+					   !StrEqual(weaponClassName, "weapon_deagle")){
 						return Plugin_Stop;
 					}
 				}
 				else if(CS_TEAM_T == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_snowball") && !StrEqual(weaponClassName, "weapon_hkp2000") && !StrEqual(weaponClassName, "weapon_mp7")){
+					if(!StrEqual(weaponClassName, "weapon_knife") && 
+					!StrEqual(weaponClassName, "weapon_snowball") && 
+					!StrEqual(weaponClassName, "weapon_hkp2000") && 
+					!StrEqual(weaponClassName, "weapon_mp7")){
 						return Plugin_Stop;
 					}
 				}
 			}
 			if(GetTeamClientCount(CS_TEAM_T) > 1 ){
 				if(CS_TEAM_CT == p.Team){
-					if(!StrEqual(weaponClassName, "weapon_taser") && !StrEqual(weaponClassName, "weapon_tagrenade")){
+					if(!StrEqual(weaponClassName, "weapon_taser") && 
+					   !StrEqual(weaponClassName, "weapon_tagrenade")){
 						return Plugin_Stop;
 					}
 				}
@@ -391,9 +430,12 @@ public Action OnWeaponCanUse(int client, int weapon){
 			}
 		}
 		case Day_ExoBump:{
-			wep.GetClassname(weaponClassName, sizeof(weaponClassName));
-			if(!StrEqual(weaponClassName, "weapon_shield") && !StrEqual(weaponClassName, "weapon_bumpmine")){
-				return Plugin_Stop;
+			if(!ExoBumpGuns){
+				wep.GetClassname(weaponClassName, sizeof(weaponClassName));
+				if(!StrEqual(weaponClassName, "weapon_shield") && 
+				   !StrEqual(weaponClassName, "weapon_bumpmine")){
+					return Plugin_Stop;
+				}
 			}
 		}
 		default:{
@@ -413,7 +455,6 @@ public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float
 	if(CurrentDay == Day_OneInTheChamber){
 		char weaponUsed[64];
 		GetEdictClassname(weapon, weaponUsed, sizeof(weaponUsed));
-		//PrintToChatAll(weaponUsed);
 		if(StrEqual(weaponUsed, "weapon_deagle", false)){
 			dmg = 1000.0;
 			return Plugin_Changed;
@@ -430,7 +471,6 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		int hpLeft;
 		char weaponUsed[64];
 		GetEventString(event, "weapon", weaponUsed, sizeof(weaponUsed));
-		//PrintToChatAll(weaponUsed);
 		GetEventInt(event, "dmg_health", hpDamage);
 		GetEventInt(event, "health", hpLeft);
 		if(StrEqual(weaponUsed, "taser", false)){
@@ -445,7 +485,6 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	CCSPlayer victim = CCSPlayer.FromEvent(event, "userid");
 	char weaponUsed[60];
 	GetEventString(event, "weapon", weaponUsed, sizeof(weaponUsed));
-	//PrintToChatAll(weaponused);
 	if(CurrentDay == Day_OneInTheChamber){
 		CWeapon wep = attacker.GetWeapon(CS_SLOT_SECONDARY);
 		wep.Ammo += 1;
@@ -455,7 +494,7 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 			if(StrEqual(weaponUsed, "taser", false)){
 				victim.SwitchTeam(CS_TEAM_CT);
 				attacker.Speed += 0.05;
-				TimerRespawnHider = CreateTimer(1.0, Timer_RespawnHider, victim, TIMER_FLAG_NO_MAPCHANGE);
+				CreateTimer(1.0, Timer_RespawnHider, victim, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			else{
 				victim.SwitchTeam(CS_TEAM_CT);
@@ -467,21 +506,21 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 				if(CS_TEAM_T == p.Team){
 					GivePlayerWeapon(p, "weapon_mp5sd");
 					GivePlayerWeapon(p, "weapon_usp_silencer");
+					GivePlayerWeapon(p, "weapon_knife");
 					p.Armor = true;
 					p.Armor = 200;
 					p.Speed = 2.5;
 					p.Health = 200;
 				}else if(CS_TEAM_CT == p.Team){
 					GivePlayerWeapon(p, "weapon_deagle");
+					GivePlayerWeapon(p, "weapon_knife");
 					p.Speed = 1.0;
 				}
 			}
 		}
 	}
-	if(CurrentDay == Day_Bumpy){
-		if(StrEqual(weaponUsed, "revolver", false)){
-			EmitSoundToAll("rats/bumpybumpy.mp3");
-		}
+	if(StrEqual(weaponUsed, "revolver", false)){
+		CreateTimer(0.5, Timer_PlayBumpy, attacker, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -523,12 +562,13 @@ public void SpecialDay_SnowballFight(){
 					wep.Kill();
 				}
 			}
+			PlayerCount();
 			p.Armor = false;
-			if(GetClientCount(true) <= 6){
+			if(TotalPlayers <= 6){
 				p.Health = 10;
-			}else if(GetClientCount(true) <= 8){
+			}else if(TotalPlayers <= 8){
 				p.Health = 15;
-			}else if(GetClientCount(true) <= 12){
+			}else if(TotalPlayers <= 12){
 				p.Health = 20;
 			}else{
 				p.Health = 25;
@@ -539,6 +579,7 @@ public void SpecialDay_SnowballFight(){
 
 public void SpecialDay_HideNSeek(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06Hide N Seek\x01!");
+	PlayerCount();
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 	TimerGiveTactNade = CreateTimer(90.0, Timer_GiveTactAware, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
@@ -563,8 +604,8 @@ public void SpecialDay_HideNSeek(){
 			}
 		}
 	}
-	float seekerPlayers = totalplayers / 4.0;
-	if(totalplayers < 4){seekerPlayers = 1.0;}
+	float seekerPlayers = TotalPlayers / 4.0;
+	if(TotalPlayers < 4){seekerPlayers = 1.0;}
 	//Random Players
 	for (int i = 0; i < RoundFloat(seekerPlayers); i++){
 		randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
@@ -573,9 +614,6 @@ public void SpecialDay_HideNSeek(){
 			randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
 			chosen--;
 		}
-		char buf[64];
-		GetClientName(randPlayers[i].Index, buf, sizeof(buf));
-		PrintToChatAll(XG_PREFIX_CHAT..."Seekers: %s", buf);
 		randPlayers[i].Speed = 0.0;
 		Handle hMsg = StartMessageOne("Fade", randPlayers[i].Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 		PbSetInt(hMsg, "duration", 5000);
@@ -643,7 +681,8 @@ public void SpecialDay_Bumpy(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06R8 8/8 M8\x01!");
 	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
-	EmitSoundToAll("rats/bumpybumpy.mp3");
+	int taunt = GetRandomInt(0, MAX_TAUNTS - 1);
+	EmitSoundToAll(taunts[taunt]);
 	TimerInfiniteR8 = CreateTimer(0.3, Timer_InfiniteR8, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	CCSPlayer p;
 	CWeapon wep;
@@ -686,8 +725,15 @@ public void SpecialDay_OneInTheChamber(){
 
 public void SpecialDay_ExoBump(){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x06ExoBump Day\x01!");
-	GameRules_SetProp("m_bTCantBuy", true, _, _, true);
-	GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
+	if(GetRandomInt(2,100) % 10 == 0){
+		PrintToChatAll(XG_PREFIX_CHAT..."\x05Rare Event: \x07No Guns\x01!");
+		ExoBumpGuns = false;
+		GameRules_SetProp("m_bTCantBuy", true, _, _, true);
+		GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
+	}
+	else{
+		ExoBumpGuns = true;
+	}
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient && p.Alive){
@@ -705,13 +751,41 @@ public void SpecialDay_ExoBump(){
 	}
 }
 
+public void SpecialDay_RiotShield(){
+	PrintToChatAll(XG_PREFIX_CHAT..."\x06Riot Shield Day\x01!");
+	CCSPlayer p;
+	while(CCSPlayer.Next(p)){
+		if(p.InGame && p.Alive){
+			GivePlayerWeapon(p, "weapon_shield");
+		}
+	}
+}
+
+public void SpecialDay_ExoBoot(){
+	PrintToChatAll(XG_PREFIX_CHAT..."\x06ExoBoot Day\x01!");
+	CCSPlayer p;
+	while(CCSPlayer.Next(p)){
+		if(p.InGame && !p.FakeClient && p.Alive){
+			SetEntProp(p.Index, Prop_Send, "m_passiveItems", 1, 1, 1);
+		}
+	}
+}
+
+public void SpecialDay_BumpMine(){
+	PrintToChatAll(XG_PREFIX_CHAT..."\x06Bumpy Mine Day\x01!");
+	CCSPlayer p;
+	while(CCSPlayer.Next(p)){
+		if(p.InGame && !p.FakeClient && p.Alive){
+			GivePlayerWeapon(p, "weapon_bumpmine");
+		}
+	}
+}
+
 public Action Timer_GiveSnowballCT(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive && CS_TEAM_CT == p.Team){
-			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){
-				GivePlayerWeapon(p, "weapon_snowball");
-			}
+		if(p.InGame && p.Alive && CS_TEAM_CT == p.Team){
+			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){GivePlayerWeapon(p, "weapon_snowball");}
 		}
 	}
 }
@@ -719,10 +793,8 @@ public Action Timer_GiveSnowballCT(Handle timer){
 public Action Timer_GiveSnowballT(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive && CS_TEAM_T == p.Team){
-			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){
-				GivePlayerWeapon(p, "weapon_snowball");
-			}
+		if(p.InGame && p.Alive && CS_TEAM_T == p.Team){
+			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){GivePlayerWeapon(p, "weapon_snowball");}
 		}
 	}
 }
@@ -730,10 +802,8 @@ public Action Timer_GiveSnowballT(Handle timer){
 public Action Timer_GiveTactAware(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive && CS_TEAM_CT == p.Team){
-			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){
-				GivePlayerWeapon(p, "weapon_tagrenade");
-			}
+		if(p.InGame && p.Alive && CS_TEAM_CT == p.Team){
+			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){GivePlayerWeapon(p, "weapon_tagrenade");}
 		}
 	}
 }
@@ -741,10 +811,8 @@ public Action Timer_GiveTactAware(Handle timer){
 public Action Timer_GiveHEGrenade(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive){
-			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){
-				GivePlayerWeapon(p, "weapon_hegrenade");
-			}
+		if(p.InGame && p.Alive){
+			if(p.GetWeapon(CS_SLOT_GRENADE).IsNull){GivePlayerWeapon(p, "weapon_hegrenade");}
 		}
 	}
 }
@@ -753,7 +821,7 @@ public Action Timer_SeekerStart(Handle timer){
 	PrintToChatAll(XG_PREFIX_CHAT..."\x02Ready or not here they come!");
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive){
+		if(p.InGame && p.Alive){
 			SetEntProp(p.Index, Prop_Data, "m_takedamage", 2, 1);
 			if(CS_TEAM_CT == p.Team){
 				SetEntPropFloat(p.Index, Prop_Data, "m_flLaggedMovementValue", 1.0);
@@ -772,7 +840,7 @@ public Action Timer_SeekerStart(Handle timer){
 public Action Timer_PlayTaunt(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive && CS_TEAM_T == p.Team){
+		if(p.InGame && p.Alive && CS_TEAM_T == p.Team){
 			float vec[3];
 			GetClientAbsOrigin(p.Index, vec);
 			vec[2] += 10;
@@ -780,6 +848,17 @@ public Action Timer_PlayTaunt(Handle timer){
 			int taunt = GetRandomInt(0, MAX_TAUNTS - 1);
 			EmitAmbientSound(taunts[taunt], vec, p.Index, SNDLEVEL_GUNFIRE);
 		}
+	}
+}
+
+public Action Timer_PlayBumpy(Handle timer, CCSPlayer attacker){
+	if(attacker.InGame && attacker.Alive){
+		float vec[3];
+		GetClientAbsOrigin(attacker.Index, vec);
+		vec[2] += 10;
+		GetClientEyePosition(attacker.Index, vec);
+		int taunt = GetRandomInt(0, MAX_TAUNTS - 1);
+		EmitAmbientSound(taunts[taunt], vec, attacker.Index, SNDLEVEL_GUNFIRE);
 	}
 }
 
@@ -794,41 +873,27 @@ public Action Timer_RespawnHider(Handle timer, CCSPlayer victim){
 		}
 	}
 	GivePlayerWeapon(victim, "weapon_taser");
+	if(GetTeamClientCount(CS_TEAM_T) == 1){
+		GivePlayerWeapon(victim, "weapon_deagle");
+	}
 }
 
 public Action Timer_InfiniteR8(Handle timer){
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient && p.Alive){
+		if(p.InGame && p.Alive){
 			CWeapon wep = p.GetWeapon(CS_SLOT_SECONDARY);
 			wep.Ammo = 8;
 		}
 	}
 }
 
-public Action Stop_Timers(){
-	if(TimerGiveSnowballCT != null){
-		delete TimerGiveSnowballCT;
-	}
-	if(TimerGiveSnowballT != null){
-		delete TimerGiveSnowballT;
-	}
-	if(TimerSeekerStart != null){
-		delete TimerSeekerStart;
-	}
-	if(TimerGiveTactNade != null){
-		delete TimerGiveTactNade;
-	}
-	if(TimerGiveHENade != null){
-		delete TimerGiveHENade;
-	}
-	if(TimerPlayTaunt != null){
-		delete TimerPlayTaunt;
-	}
-	if(TimerInfiniteR8 != null){
-		delete TimerInfiniteR8;
-	}
-	if(TimerRespawnHider != null){
-		delete TimerRespawnHider;
+public void PlayerCount(){
+	TotalPlayers = 0;
+	CCSPlayer p;
+	while(CCSPlayer.Next(p)){
+		if(p.InGame && !p.FakeClient){
+			TotalPlayers++;
+		}
 	}
 }
