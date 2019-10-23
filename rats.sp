@@ -237,8 +237,6 @@ public void OnClientDisconnect(int client){
 
 public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast){
 	if(FirstRound){
-		AutoBalance.IntValue = 1;
-		FreezeTime.IntValue = 10;
 		CurrentDay = Day_Normal;
 		SpecialDay_Normal();
 		FirstRound = false;
@@ -298,75 +296,99 @@ public void Event_RoundStart(Event event, const char[] name, bool dontbroadcast)
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast){
 	if(CurrentDay == Day_Snowball){
-		if(TimerGiveSnowballCT != null){delete TimerGiveSnowballCT;}
-		if(TimerGiveSnowballT != null){delete TimerGiveSnowballT;}
+		delete TimerGiveSnowballCT;delete TimerGiveSnowballT;
 	}
 	if(CurrentDay == Day_HideNSeek){
 		int countCT = GetTeamClientCount(CS_TEAM_CT);
 		int countT = GetTeamClientCount(CS_TEAM_T);
 		if(countCT+1 != countT || countCT-1 != countT){
-			if(countCT > countT){
-				CCSPlayer p;
-				while(CCSPlayer.Next(p)){
-					if(CS_TEAM_CT == p.Team){p.SwitchTeam(CS_TEAM_T);}
-					break;
+			if((countCT + countT)%2 == 0){
+				while(countCT != countT){
+					if(countCT > countT){
+						CCSPlayer p;
+						while(CCSPlayer.Next(p)){
+							if(CS_TEAM_CT == p.Team){p.SwitchTeam(CS_TEAM_T);}
+							break;
+						}
+					}
+					if(countT > countCT){
+						CCSPlayer p;
+						while(CCSPlayer.Next(p)){
+							if(CS_TEAM_T == p.Team){p.SwitchTeam(CS_TEAM_CT);}
+							break;
+						}
+					}
 				}
 			}
-			if(countT > countCT){
-				CCSPlayer p;
-				while(CCSPlayer.Next(p)){
-					if(CS_TEAM_T == p.Team){p.SwitchTeam(CS_TEAM_CT);}
-					break;
+			else{
+				while(countCT+1 != countT && countCT-1 != countT){
+					if(countCT > countT){
+						CCSPlayer p;
+						while(CCSPlayer.Next(p)){
+							if(CS_TEAM_CT == p.Team){p.SwitchTeam(CS_TEAM_T);}
+							break;
+						}
+					}
+					if(countT > countCT){
+						CCSPlayer p;
+						while(CCSPlayer.Next(p)){
+							if(CS_TEAM_T == p.Team){p.SwitchTeam(CS_TEAM_CT);}
+							break;
+						}
+					}
 				}
 			}
 		}
-		if(TimerGiveSnowballT != null){delete TimerGiveSnowballT;}
-		if(TimerGiveTactNade != null){delete TimerGiveTactNade;}
-		if(TimerPlayTaunt != null){delete TimerPlayTaunt;}
+		delete TimerGiveSnowballT;
+		delete TimerGiveTactNade;
+		delete TimerPlayTaunt;
 		if(TimerSeekerStart != null){delete TimerSeekerStart;}
 	}
 	if(CurrentDay == Day_HEThrow){
-		if(TimerGiveHENade != null){delete TimerGiveHENade;}
+		delete TimerGiveHENade;
 	}
 	if(CurrentDay == Day_Bumpy){
-		if(TimerInfiniteR8 != null){delete TimerInfiniteR8;}
+		delete TimerInfiniteR8;
 	}
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && p.Alive){
 			p.HeavyArmor = false;
+			p.Speed = 1.0;
+			p.Gravity = 1.0;
 			SetEntProp(p.Index, Prop_Send, "m_passiveItems", 0, 1, 1);
 		}
 	}
 	if(!ForceDay){
+		PlayerCount();
 		RatDay = GetRandomInt(1,100);
+		SpecialDay = GetRandomInt(1, 12);
+		if(TotalPlayers < PlayersForDays.IntValue){
+			RatDay = NormalChance.IntValue;
+			FreezeTime.IntValue = 10;
+		}
 	}
 	//Get Random Day
 	if(RatDay > NormalChance.IntValue){
 		PlayerCount();
 		if(TotalPlayers >= PlayersForDays.IntValue || ForceDay){
-			if(!ForceDay){
-				SpecialDay = GetRandomInt(1, 12);
-			}
-			if(TotalPlayers < PlayersForDays.IntValue && SpecialDay == 3 && !ForceDay){
-				SpecialDay = GetRandomInt(4,12);
-			}
+			if(TotalPlayers < PlayersForDays.IntValue && SpecialDay == 3 && !ForceDay){SpecialDay = GetRandomInt(4,12);}
+			if(SpecialDay == 3){AutoBalance.IntValue = 0;}else{AutoBalance.IntValue = 1;}
 			switch(SpecialDay){
-				case 1:{/*BigJug*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
-				case 2:{/*Snowball*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
-				case 3:{/*HideNSeek*/AutoBalance.IntValue = 0;FreezeTime.IntValue = 0;}
-				case 4:{/*HEThrow*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
-				case 5:{/*Sanic*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
-				case 6:{/*LowGravity*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
-				case 7:{/*Bumpy*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
-				case 8:{/*OneInTheChamber*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 0;}
-				case 9:{/*ExoBump*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
-				case 10:{/*RiotShield*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
-				case 11:{/*ExoBoot*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
-				case 12:{/*BumpMine*/AutoBalance.IntValue = 1;FreezeTime.IntValue = 10;}
+				case 1:{/*BigJug*/FreezeTime.IntValue = 10;}
+				case 2:{/*Snowball*/FreezeTime.IntValue = 0;}
+				case 3:{/*HideNSeek*/FreezeTime.IntValue = 0;}
+				case 4:{/*HEThrow*/FreezeTime.IntValue = 0;}
+				case 5:{/*Sanic*/FreezeTime.IntValue = 10;}
+				case 6:{/*LowGravity*/FreezeTime.IntValue = 10;}
+				case 7:{/*Bumpy*/FreezeTime.IntValue = 0;}
+				case 8:{/*OneInTheChamber*/FreezeTime.IntValue = 0;}
+				case 9:{/*ExoBump*/FreezeTime.IntValue = 10;}
+				case 10:{/*RiotShield*/FreezeTime.IntValue = 10;}
+				case 11:{/*ExoBoot*/FreezeTime.IntValue = 10;}
+				case 12:{/*BumpMine*/FreezeTime.IntValue = 10;}
 			}
 		}
-		else{RatDay = NormalChance.IntValue;}
 	}
 	else{
 		AutoBalance.IntValue = 1;
@@ -448,7 +470,7 @@ public Action OnWeaponCanUse(int client, int weapon){
 public Action OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &dmg, int &dmgType, int &weapon, float dmgForce[3], float dmgPos[3], int dmgCustom) {
 	if(CurrentDay == Day_OneInTheChamber || CurrentDay == Day_ExoBump){
 		if(dmgType == DMG_FALL){
-			dmg = 0.0;
+			dmg = 1.0;
 			return Plugin_Changed;
 		}
 	}
@@ -536,7 +558,7 @@ public void SpecialDay_BigJug(){
 			p.Health = 200;
 			p.Armor = 200;
 			p.HeavyArmor = true;
-			p.Speed = 0.6;
+			p.Speed = 0.7;
 			CWeapon wep;
 			if((wep = p.GetWeapon(CS_SLOT_PRIMARY)) != NULL_CWEAPON){
 				p.RemoveItem(wep);
@@ -589,10 +611,11 @@ public void SpecialDay_HideNSeek(){
 	PrintToChatAll(XG_PREFIX_CHAT_ALERT..."You have \x0C60 seconds \x01to hide!");
 	CCSPlayer randPlayers[64];
 	CCSPlayer realPlayers[64];
-	int chosen, count = 0;
+	int chosenPlayers[64];
+	int count = 0;
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
-		if(p.InGame && !p.FakeClient){
+		if(p.InGame && !p.FakeClient && p.Alive){
 			realPlayers[count] = p;
 			count++;
 			for(int i = 0; i <= CS_SLOT_C4;i++){
@@ -604,16 +627,20 @@ public void SpecialDay_HideNSeek(){
 			}
 		}
 	}
-	float seekerPlayers = TotalPlayers / 4.0;
-	if(TotalPlayers < 4){seekerPlayers = 1.0;}
+	int i = 0;
+	int num;
+	float numSeekers = TotalPlayers / 4.0;
+	if(TotalPlayers < 4){numSeekers = 1.0;}
+	RoundFloat(numSeekers);
 	//Random Players
-	for (int i = 0; i < RoundFloat(seekerPlayers); i++){
-		randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
-		chosen = count-1;
-		while(randPlayers[chosen] == randPlayers[i]){
-			randPlayers[i] = realPlayers[GetRandomInt(0, count-1)];
-			chosen--;
+	while (i<numSeekers){
+		num = GetRandomInt(0, TotalPlayers);
+		if(chosenPlayers[num] == 0){
+			chosenPlayers[num] = 1;
+			randPlayers[i++] = realPlayers[num];
 		}
+	}
+	for (i = 0; i <= numSeekers; i++){
 		randPlayers[i].Speed = 0.0;
 		Handle hMsg = StartMessageOne("Fade", randPlayers[i].Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 		PbSetInt(hMsg, "duration", 5000);
@@ -627,7 +654,7 @@ public void SpecialDay_HideNSeek(){
 	while(CCSPlayer.Next(player)){
 		if(player.InGame && player.Alive){
 			SetEntProp(player.Index, Prop_Data, "m_takedamage", 0, 1);
-			for (int i = 0; i < RoundFloat(seekerPlayers); i++){
+			for (i = 0; i < numSeekers; i++){
 				if(player != randPlayers[i]){
 					player.SwitchTeam(CS_TEAM_T);
 					player.Speed = 0.95;
@@ -731,9 +758,7 @@ public void SpecialDay_ExoBump(){
 		GameRules_SetProp("m_bTCantBuy", true, _, _, true);
 		GameRules_SetProp("m_bCTCantBuy", true, _, _, true);
 	}
-	else{
-		ExoBumpGuns = true;
-	}
+	else{ExoBumpGuns = true;}
 	CCSPlayer p;
 	while(CCSPlayer.Next(p)){
 		if(p.InGame && !p.FakeClient && p.Alive){
@@ -824,7 +849,7 @@ public Action Timer_SeekerStart(Handle timer){
 		if(p.InGame && p.Alive){
 			SetEntProp(p.Index, Prop_Data, "m_takedamage", 2, 1);
 			if(CS_TEAM_CT == p.Team){
-				SetEntPropFloat(p.Index, Prop_Data, "m_flLaggedMovementValue", 1.0);
+				p.Speed = 1.0;
 				Handle hMsg = StartMessageOne("Fade", p.Index, USERMSG_RELIABLE | USERMSG_BLOCKHOOKS);
 				PbSetInt(hMsg, "duration", 5000);
 				PbSetInt(hMsg, "hold_time", 1500);
